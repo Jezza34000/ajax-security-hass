@@ -4,6 +4,14 @@ Home Assistant integration for Ajax Systems security devices via official Cloud 
 
 [Version française ci-dessous](#version-française)
 
+## 💰 Support the Project
+
+If this integration is useful to you, you can support its development with a Bitcoin donation:
+
+🪙 Bitcoin Address: `bc1qhe4ge22x0anuyeg0fmts6rdmz3t735dnqwt3p7`
+
+Your contributions help me continue improving this project and adding new features. Thank you! 🙏
+
 ## Features
 
 - Arm/Disarm security system
@@ -41,13 +49,6 @@ Copy `custom_components/ajax` to your Home Assistant `custom_components` folder.
 - Glass break detectors
 - Sirens and keypads
 
-## 💰 Support the Project
-
-If this integration is useful to you, you can support its development with a Bitcoin donation:
-
-🪙 Bitcoin Address: `bc1qhe4ge22x0anuyeg0fmts6rdmz3t735dnqwt3p7`
-
-Your contributions help me continue improving this project and adding new features. Thank you! 🙏
 
 ## License
 
