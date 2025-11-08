@@ -164,7 +164,9 @@ DEVICE_SENSORS: tuple[AjaxDeviceSensorDescription, ...] = (
     ),
 )
 
-# Hub-specific sensor descriptions (for SIM, connections, etc.)
+# Hub-specific sensor descriptions (for SIM status only)
+# Note: Other Hub sensors (GSM signal, WiFi signal, active connection, network status, noise level)
+# are not available because the Ajax gRPC API does not expose these details
 HUB_SENSORS: tuple[AjaxDeviceSensorDescription, ...] = (
     AjaxDeviceSensorDescription(
         key="sim_status",
@@ -179,56 +181,6 @@ HUB_SENSORS: tuple[AjaxDeviceSensorDescription, ...] = (
             "sim_slots_used": device.attributes.get("sim_slots_used", 0),
             "sim_cards": device.attributes.get("sim_cards", []),
         } if "sim_cards" in device.attributes else {},
-    ),
-    AjaxDeviceSensorDescription(
-        key="gsm_signal_level",
-        translation_key="gsm_signal_level",
-        icon="mdi:signal-cellular-3",
-        entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda device: device.attributes.get("gsm_signal_level"),
-        should_create=lambda device: "gsm_signal_level" in device.attributes,
-        enabled_by_default=True,
-    ),
-    AjaxDeviceSensorDescription(
-        key="wifi_signal_level",
-        translation_key="wifi_signal_level",
-        icon="mdi:wifi",
-        entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda device: device.attributes.get("wifi_signal_level"),
-        should_create=lambda device: "wifi_signal_level" in device.attributes,
-        enabled_by_default=True,
-    ),
-    AjaxDeviceSensorDescription(
-        key="active_connection",
-        translation_key="active_connection",
-        icon="mdi:network",
-        entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda device: device.attributes.get("active_connection"),
-        should_create=lambda device: "active_connection" in device.attributes,
-        enabled_by_default=True,
-    ),
-    AjaxDeviceSensorDescription(
-        key="network_status",
-        translation_key="network_status",
-        icon="mdi:cell-phone",
-        entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda device: device.attributes.get("network_status"),
-        should_create=lambda device: "network_status" in device.attributes,
-        enabled_by_default=True,
-    ),
-    AjaxDeviceSensorDescription(
-        key="noise_level_avg",
-        translation_key="noise_level_avg",
-        icon="mdi:volume-high",
-        entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda device: device.attributes.get("noise_level_avg"),
-        should_create=lambda device: "noise_level_avg" in device.attributes,
-        enabled_by_default=False,
-        extra_attributes_fn=lambda device: {
-            "channel1": device.attributes.get("noise_level_channel1"),
-            "channel2": device.attributes.get("noise_level_channel2"),
-            "high": device.attributes.get("noise_level_high"),
-        } if "noise_level_channel1" in device.attributes else {},
     ),
 )
 

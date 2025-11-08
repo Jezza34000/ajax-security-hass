@@ -179,6 +179,11 @@
       "external_power": {
         "name": "External power"
       }
+    },
+    "button": {
+      "panic": {
+        "name": "Panic Button"
+      }
     }
   },
   "services": {

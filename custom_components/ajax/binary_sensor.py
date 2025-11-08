@@ -65,23 +65,10 @@ async def async_setup_entry(
     # Create device-level binary sensors for each supported device
     for space_id, space in coordinator.account.spaces.items():
         for device_id, device in space.devices.items():
-            # For Hubs, create tamper and power binary sensors
+            # Note: Hub-specific binary sensors (tamper, external power) are not available
+            # because the Ajax gRPC API does not expose these details for Hubs
             if device.type == DeviceType.HUB:
-                # Tamper sensor (cover open/closed)
-                if "tampered" in device.attributes:
-                    entities.append(
-                        AjaxHubTamperSensor(coordinator, entry, space_id, device_id)
-                    )
-                    _LOGGER.debug("Created tamper sensor for Hub '%s'", device.name)
-
-                # External power sensor
-                if "externally_powered" in device.attributes:
-                    entities.append(
-                        AjaxHubPowerSensor(coordinator, entry, space_id, device_id)
-                    )
-                    _LOGGER.debug("Created power sensor for Hub '%s'", device.name)
-
-                continue  # Don't create regular binary sensor for hubs
+                continue  # Skip Hubs - no binary sensors available
 
             # Skip if device type not supported as binary sensor
             if device.type not in DEVICE_TYPE_MAP:
@@ -384,133 +371,5 @@ class AjaxDeviceBinarySensor(CoordinatorEntity[AjaxDataCoordinator], BinarySenso
 # ==============================================================================
 
 
-class AjaxHubTamperSensor(CoordinatorEntity[AjaxDataCoordinator], BinarySensorEntity):
-    """Binary sensor for Hub tamper status (cover open/closed)."""
-
-    _attr_device_class = BinarySensorDeviceClass.TAMPER
-
-    def __init__(
-        self,
-        coordinator: AjaxDataCoordinator,
-        entry: ConfigEntry,
-        space_id: str,
-        device_id: str,
-    ) -> None:
-        """Initialize the tamper sensor."""
-        super().__init__(coordinator)
-        self._space_id = space_id
-        self._device_id = device_id
-        self._entry = entry
-
-        # Set entity attributes - use translation_key
-        self._attr_has_entity_name = True
-        self._attr_translation_key = "tamper"
-        self._attr_unique_id = f"{entry.entry_id}_{device_id}_tamper"
-        self._attr_icon = "mdi:shield-alert"
-        self._attr_entity_category = "diagnostic"
-
-    @property
-    def is_on(self) -> bool | None:
-        """Return true if tampered (cover opened)."""
-        device = self.coordinator.get_device(self._space_id, self._device_id)
-        if not device:
-            return None
-
-        return device.attributes.get("tampered", False)
-
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        if not self.coordinator.last_update_success:
-            return False
-
-        device = self.coordinator.get_device(self._space_id, self._device_id)
-        return device is not None and device.online
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        self.async_write_ha_state()
-
-    @property
-    def device_info(self) -> dict[str, Any]:
-        """Return device information."""
-        device = self.coordinator.get_device(self._space_id, self._device_id)
-        if not device:
-            return {}
-
-        return {
-            "identifiers": {(DOMAIN, self._device_id)},
-            "name": f"Ajax {device.name}",
-            "manufacturer": "Ajax Systems",
-            "model": device.type.value.replace("_", " ").title(),
-            "via_device": (DOMAIN, self._space_id),
-            "sw_version": device.firmware_version,
-            "hw_version": device.hardware_version,
-        }
-
-
-class AjaxHubPowerSensor(CoordinatorEntity[AjaxDataCoordinator], BinarySensorEntity):
-    """Binary sensor for Hub external power status."""
-
-    _attr_device_class = BinarySensorDeviceClass.PLUG
-
-    def __init__(
-        self,
-        coordinator: AjaxDataCoordinator,
-        entry: ConfigEntry,
-        space_id: str,
-        device_id: str,
-    ) -> None:
-        """Initialize the power sensor."""
-        super().__init__(coordinator)
-        self._space_id = space_id
-        self._device_id = device_id
-        self._entry = entry
-
-        # Set entity attributes - use translation_key
-        self._attr_has_entity_name = True
-        self._attr_translation_key = "external_power"
-        self._attr_unique_id = f"{entry.entry_id}_{device_id}_external_power"
-        self._attr_icon = "mdi:power-plug"
-        self._attr_entity_category = "diagnostic"
-
-    @property
-    def is_on(self) -> bool | None:
-        """Return true if externally powered."""
-        device = self.coordinator.get_device(self._space_id, self._device_id)
-        if not device:
-            return None
-
-        return device.attributes.get("externally_powered", False)
-
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        if not self.coordinator.last_update_success:
-            return False
-
-        device = self.coordinator.get_device(self._space_id, self._device_id)
-        return device is not None and device.online
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        self.async_write_ha_state()
-
-    @property
-    def device_info(self) -> dict[str, Any]:
-        """Return device information."""
-        device = self.coordinator.get_device(self._space_id, self._device_id)
-        if not device:
-            return {}
-
-        return {
-            "identifiers": {(DOMAIN, self._device_id)},
-            "name": f"Ajax {device.name}",
-            "manufacturer": "Ajax Systems",
-            "model": device.type.value.replace("_", " ").title(),
-            "via_device": (DOMAIN, self._space_id),
-            "sw_version": device.firmware_version,
-            "hw_version": device.hardware_version,
-        }
+# Note: Hub-specific binary sensors (tamper, external power) have been removed
+# because the Ajax gRPC API does not expose these details for Hubs

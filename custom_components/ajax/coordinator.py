@@ -52,7 +52,7 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
         """Initialize the coordinator."""
         self.api = api
         self.account: AjaxAccount | None = None
-        self._streaming_task: asyncio.Task | None = None
+        self._streaming_tasks: dict[str, asyncio.Task] = {}  # space_id -> streaming task
 
         super().__init__(
             hass,
@@ -82,6 +82,9 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             for space_id in self.account.spaces.keys():
                 await self._async_update_notifications(space_id, limit=50)
 
+            # Start real-time streaming tasks for each space (if not already started)
+            await self._async_start_streaming_tasks()
+
             _LOGGER.debug(
                 "Updated Ajax data: %d spaces, %d devices",
                 len(self.account.spaces),
@@ -94,6 +97,108 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             raise ConfigEntryAuthFailed(f"Authentication failed: {err}") from err
         except AjaxApiError as err:
             raise UpdateFailed(f"Error communicating with API: {err}") from err
+
+    async def _async_start_streaming_tasks(self) -> None:
+        """Start real-time streaming tasks for all spaces."""
+        if not self.account:
+            return
+
+        for space_id in self.account.spaces.keys():
+            # Skip if already streaming for this space
+            if space_id in self._streaming_tasks and not self._streaming_tasks[space_id].done():
+                continue
+
+            # Create and start streaming task
+            task = asyncio.create_task(self._async_stream_space(space_id))
+            self._streaming_tasks[space_id] = task
+            _LOGGER.info("Started real-time streaming for space %s", space_id)
+
+    async def _async_stream_space(self, space_id: str) -> None:
+        """Stream updates for a specific space in the background."""
+        try:
+            async for success in self.api.async_stream_space_updates(space_id):
+                # Process the update
+                await self._async_process_stream_update(space_id, success)
+
+        except asyncio.CancelledError:
+            _LOGGER.info("Streaming cancelled for space %s", space_id)
+            raise
+        except Exception as err:
+            _LOGGER.error("Error in streaming task for space %s: %s", space_id, err)
+            # Wait a bit before coordinator tries to restart it
+            await asyncio.sleep(5)
+
+    async def _async_process_stream_update(self, space_id: str, success) -> None:
+        """Process a single stream update."""
+        try:
+            # Check if it's a snapshot (initial data) or an update
+            if success.HasField("snapshot"):
+                _LOGGER.debug("Received snapshot for space %s", space_id)
+                # Snapshot is the full space data - we already have it from polling
+                # Just trigger a refresh to ensure consistency
+                self.async_set_updated_data(self.account)
+
+            elif success.HasField("update"):
+                # Single update
+                await self._async_handle_single_update(space_id, success.update)
+
+            elif success.HasField("updates"):
+                # Multiple updates
+                for update in success.updates.updates:
+                    await self._async_handle_single_update(space_id, update)
+
+        except Exception as err:
+            _LOGGER.error("Error processing stream update for space %s: %s", space_id, err)
+
+    async def _async_handle_single_update(self, space_id: str, update) -> None:
+        """Handle a single update from the stream."""
+        try:
+            update_type = str(update.space_update_type).split("_")[-1]
+
+            _LOGGER.debug(
+                "Stream update for space %s: type=%s",
+                space_id,
+                update_type
+            )
+
+            # Security mode update (MOST IMPORTANT FOR YOUR USE CASE)
+            if update.HasField("security_mode"):
+                security_mode = update.security_mode
+                space = self.account.spaces.get(space_id)
+                if space:
+                    # Map security mode to our internal state
+                    mode_str = str(security_mode.mode).split("_")[-1].upper()
+                    if "DISARMED" in mode_str:
+                        space.security_state = SecurityState.DISARMED
+                    elif "ARMED" in mode_str:
+                        space.security_state = SecurityState.ARMED
+                    elif "NIGHT" in mode_str:
+                        space.security_state = SecurityState.NIGHT_MODE
+
+                    _LOGGER.info(
+                        "Real-time security state update for space %s: %s",
+                        space_id,
+                        space.security_state
+                    )
+
+                    # Notify Home Assistant of the change
+                    self.async_set_updated_data(self.account)
+
+            # Device update
+            elif update.HasField("device"):
+                # Full refresh for device changes (less critical, can use polling)
+                _LOGGER.debug("Device update received, will refresh on next poll")
+
+            # Room update
+            elif update.HasField("room"):
+                _LOGGER.debug("Room update received")
+
+            # Group update
+            elif update.HasField("group"):
+                _LOGGER.debug("Group update received")
+
+        except Exception as err:
+            _LOGGER.error("Error handling update: %s", err)
 
     async def _async_init_account(self) -> None:
         """Initialize the account data."""
@@ -198,6 +303,22 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             # Update device attributes dict
             if "attributes" in device_data:
                 device.attributes.update(device_data["attributes"])
+
+            # For Hub devices, try to get additional data via streamHubObject
+            if device.type == DeviceType.HUB:
+                try:
+                    _LOGGER.debug("Fetching HubObject data for hub %s", device.id)
+                    hub_obj_data = await self.api.async_stream_hub_object(device.id)
+                    if hub_obj_data:
+                        _LOGGER.info("Received HubObject data: %s", hub_obj_data)
+                        # Merge hub_obj_data into device attributes
+                        if "attributes" not in device_data:
+                            device.attributes = {}
+                        device.attributes.update(hub_obj_data)
+                    else:
+                        _LOGGER.warning("No HubObject data received for hub %s", device.id)
+                except Exception as err:
+                    _LOGGER.error("Failed to fetch HubObject for hub %s: %s", device.id, err)
 
             # Update room association
             if device.room_id and device.room_id in space.rooms:
@@ -378,6 +499,20 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             _LOGGER.error("Failed to activate night mode for space %s: %s", space_id, err)
             raise
 
+    async def async_press_panic_button(self, space_id: str) -> None:
+        """Press panic button (trigger panic alarm) for a space."""
+        _LOGGER.warning("PANIC BUTTON pressed for space %s", space_id)
+
+        try:
+            await self.api.async_press_panic_button(space_id)
+
+            # Request immediate data refresh to get updated state
+            await self.async_request_refresh()
+
+        except AjaxApiError as err:
+            _LOGGER.error("Failed to trigger panic for space %s: %s", space_id, err)
+            raise
+
     # ============================================================================
     # Helper methods
     # ============================================================================
@@ -400,13 +535,17 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
         """Shutdown the coordinator."""
         _LOGGER.info("Shutting down Ajax coordinator")
 
-        # Stop streaming task if running
-        if self._streaming_task and not self._streaming_task.done():
-            self._streaming_task.cancel()
-            try:
-                await self._streaming_task
-            except asyncio.CancelledError:
-                pass
+        # Stop all streaming tasks
+        for space_id, task in self._streaming_tasks.items():
+            if not task.done():
+                _LOGGER.debug("Cancelling streaming task for space %s", space_id)
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+        self._streaming_tasks.clear()
 
         # Close API connection
         await self.api.close()

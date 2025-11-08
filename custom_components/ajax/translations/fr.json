@@ -220,6 +220,11 @@
       "external_power": {
         "name": "Alimentation externe"
       }
+    },
+    "button": {
+      "panic": {
+        "name": "Bouton Panique"
+      }
     }
   },
   "services": {

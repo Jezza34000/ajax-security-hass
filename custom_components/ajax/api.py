@@ -44,6 +44,19 @@ from custom_components.ajax.systems.ajax.api.mobile.v2.space.security import (
 )
 from custom_components.ajax.systems.ajax.api.mobile.v2.common.space import space_locator_pb2
 
+# Import space service for panic button and streaming
+from custom_components.ajax.systems.ajax.api.mobile.v2.space import (
+    space_endpoints_pb2_grpc,
+    press_panic_button_request_pb2,
+    stream_space_updates_request_pb2,
+)
+
+# Import hub object service for Hub-specific data
+from custom_components.ajax.systems.ajax.api.mobile.v2.hubobject import (
+    hub_object_endpoints_pb2_grpc,
+    stream_hub_object_request_pb2,
+)
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -313,21 +326,229 @@ class AjaxApi:
             _LOGGER.exception("Unexpected error getting devices")
             raise AjaxApiError(f"Failed to get devices: {err}") from err
 
+    async def async_stream_hub_object(self, hub_id: str) -> dict[str, Any] | None:
+        """Stream Hub object data to get detailed Hub information."""
+        if not self.session_token:
+            raise AjaxAuthError("Not authenticated. Call async_login() first.")
+
+        try:
+            _LOGGER.debug("Streaming HubObject for hub_id: %s", hub_id)
+
+            # Create request for streaming hub object
+            request = stream_hub_object_request_pb2.StreamHubObjectRequest(
+                hex_id=hub_id
+            )
+
+            # Create stub and call service (streaming response)
+            stub = hub_object_endpoints_pb2_grpc.HubObjectServiceStub(self.channel)
+            response_stream = stub.streamHubObject(
+                request, metadata=self._get_metadata(include_auth=True)
+            )
+
+            hub_data = None
+            response_count = 0
+
+            # Read the stream - first message should be a snapshot
+            async for response in response_stream:
+                response_count += 1
+                _LOGGER.debug("Received HubObject response #%d", response_count)
+
+                # Check which type of response (snapshot, update, create, delete)
+                which = response.WhichOneof('item')
+                _LOGGER.debug("HubObject response type: %s", which)
+
+                if which in ('snapshot', 'update', 'create'):
+                    hub_obj = getattr(response, which)
+                    _LOGGER.info("Received HubObject %s for hub %s", which, hub_id)
+
+                    # Parse the HubObject
+                    hub_data = self._parse_hub_object(hub_obj)
+
+                    # For snapshot, we can break after first response
+                    # For update/create, we continue streaming for real-time updates
+                    if which == 'snapshot':
+                        _LOGGER.debug("Snapshot received, stopping stream")
+                        break
+
+                elif which == 'delete':
+                    _LOGGER.warning("Hub %s was deleted", hub_id)
+                    return None
+
+            if response_count == 0:
+                _LOGGER.warning("No responses received from streamHubObject")
+                return None
+
+            return hub_data
+
+        except grpc.RpcError as err:
+            _LOGGER.error("gRPC error streaming hub object: %s", err)
+            if err.code() == grpc.StatusCode.UNAUTHENTICATED:
+                raise AjaxAuthError("Session expired") from err
+            raise AjaxApiError(f"gRPC error: {err}") from err
+        except (AjaxAuthError, AjaxApiError):
+            raise
+        except Exception as err:
+            _LOGGER.exception("Unexpected error streaming hub object")
+            raise AjaxApiError(f"Failed to stream hub object: {err}") from err
+
+    def _parse_hub_object(self, hub_obj) -> dict[str, Any]:
+        """Parse a HubObject protobuf message to a dict."""
+        try:
+            _LOGGER.debug("Parsing HubObject: %s", hub_obj)
+
+            hub_data = {
+                "hex_id": hub_obj.hex_id if hasattr(hub_obj, "hex_id") else None,
+            }
+
+            # Parse SIM card info
+            try:
+                if hasattr(hub_obj, "sim_card"):
+                    sim = hub_obj.sim_card
+                    hub_data["sim_card"] = {
+                        "active_sim_card": sim.active_sim_card if hasattr(sim, "active_sim_card") else None,
+                        "sim_card_status": str(sim.sim_card_status).split("_")[-1] if hasattr(sim, "sim_card_status") else None,
+                        "imei": sim.imei if hasattr(sim, "imei") else None,
+                    }
+                    _LOGGER.debug("SIM card info: %s", hub_data["sim_card"])
+            except (ValueError, AttributeError) as e:
+                _LOGGER.debug("Could not parse SIM card info: %s", e)
+
+            # Parse firmware update info
+            try:
+                if hasattr(hub_obj, "system_firmware_update"):
+                    fw = hub_obj.system_firmware_update
+                    hub_data["firmware_update"] = {
+                        "available": True,
+                        "version": fw.version if hasattr(fw, "version") else None,
+                    }
+                    _LOGGER.debug("Firmware update available: %s", hub_data["firmware_update"])
+            except (ValueError, AttributeError) as e:
+                _LOGGER.debug("Could not parse firmware update info: %s", e)
+
+            # Parse hub connection properties
+            try:
+                if hasattr(hub_obj, "hub_connection_properties"):
+                    props = hub_obj.hub_connection_properties
+                    # This contains delay durations for offline events
+                    # Not critical for now, can be expanded later
+            except (ValueError, AttributeError) as e:
+                _LOGGER.debug("Could not parse hub connection properties: %s", e)
+                _LOGGER.debug("Hub connection properties found")
+
+            # Log all fields for debugging
+            _LOGGER.debug("HubObject fields: %s", [f.name for f in hub_obj.DESCRIPTOR.fields])
+
+            return hub_data
+
+        except Exception as err:
+            _LOGGER.exception("Failed to parse HubObject: %s", err)
+            return {"hex_id": None, "error": str(err)}
+
     def _parse_light_device(self, light_device) -> dict[str, Any] | None:
         """Parse a LightDevice protobuf message to a dict."""
         try:
             _LOGGER.debug("Parsing LightDevice: %s", light_device)
 
             # LightDevice can be a hub_device, video_edge, video_edge_channel, or smart_lock
-            if light_device.HasField("hub_device"):
+            if hasattr(light_device, "hub_device") and light_device.hub_device:
                 hub_dev = light_device.hub_device
                 _LOGGER.debug("Found hub_device")
 
-                if not hub_dev.HasField("common_device"):
-                    _LOGGER.warning("hub_device has no common_device field")
-                    return None
+                # Debug: List ALL available fields in hub_device
+                if hasattr(hub_dev, 'DESCRIPTOR'):
+                    available_fields = [f.name for f in hub_dev.DESCRIPTOR.fields]
+                    _LOGGER.info("🔍 HubDevice available fields: %s", available_fields)
 
-                common = hub_dev.common_device
+                    # Check which optional fields are actually set
+                    set_fields = []
+                    for field in hub_dev.DESCRIPTOR.fields:
+                        try:
+                            if field.message_type:
+                                # For message fields, try HasField (may fail for proto3 fields without presence)
+                                try:
+                                    if hub_dev.HasField(field.name):
+                                        set_fields.append(field.name)
+                                except ValueError:
+                                    # Proto3 field without presence - check if it's set directly
+                                    val = getattr(hub_dev, field.name, None)
+                                    if val:
+                                        set_fields.append(field.name)
+                            else:
+                                # For primitive fields, check if it has a non-default value
+                                if hasattr(hub_dev, field.name):
+                                    value = getattr(hub_dev, field.name)
+                                    if value or value == 0:  # Include 0 but not None/empty
+                                        set_fields.append(field.name)
+                        except (ValueError, AttributeError):
+                            pass
+                    _LOGGER.info("✅ HubDevice fields that are SET: %s", set_fields)
+
+                    # DEEP DIVE: Explore device_specific_properties
+                    try:
+                        if hasattr(hub_dev, "device_specific_properties"):
+                            dsp = hub_dev.device_specific_properties
+                            _LOGGER.info("🔎 DEEP DIVE device_specific_properties: %s", dsp)
+                            if hasattr(dsp, 'DESCRIPTOR'):
+                                dsp_fields = [f.name for f in dsp.DESCRIPTOR.fields]
+                                _LOGGER.info("  └─ Available fields: %s", dsp_fields)
+                                # Try to access each field
+                                for field_name in dsp_fields:
+                                    try:
+                                        field_value = getattr(dsp, field_name, None)
+                                        if field_value:
+                                            _LOGGER.info("  └─ %s = %s", field_name, field_value)
+                                    except Exception as e:
+                                        _LOGGER.debug("  └─ %s: error accessing (%s)", field_name, e)
+                    except Exception as e:
+                        _LOGGER.debug("Error exploring device_specific_properties: %s", e)
+
+                    # DEEP DIVE: Explore spread_properties
+                    try:
+                        if hasattr(hub_dev, "spread_properties"):
+                            sp = hub_dev.spread_properties
+                            _LOGGER.info("🔎 DEEP DIVE spread_properties: %s", sp)
+                            if hasattr(sp, 'DESCRIPTOR'):
+                                sp_fields = [f.name for f in sp.DESCRIPTOR.fields]
+                                _LOGGER.info("  └─ Available fields: %s", sp_fields)
+                                # Try to access each field
+                                for field_name in sp_fields:
+                                    try:
+                                        field_value = getattr(sp, field_name, None)
+                                        if field_value:
+                                            _LOGGER.info("  └─ %s = %s", field_name, field_value)
+                                    except Exception as e:
+                                        _LOGGER.debug("  └─ %s: error accessing (%s)", field_name, e)
+                    except Exception as e:
+                        _LOGGER.debug("Error exploring spread_properties: %s", e)
+
+                    # DEEP DIVE: Explore custom_properties
+                    try:
+                        if hasattr(hub_dev, "custom_properties"):
+                            cp = hub_dev.custom_properties
+                            _LOGGER.info("🔎 DEEP DIVE custom_properties: %s", cp)
+                            if hasattr(cp, 'DESCRIPTOR'):
+                                cp_fields = [f.name for f in cp.DESCRIPTOR.fields]
+                                _LOGGER.info("  └─ Available fields: %s", cp_fields)
+                                # Try to access each field
+                                for field_name in cp_fields:
+                                    try:
+                                        field_value = getattr(cp, field_name, None)
+                                        if field_value:
+                                            _LOGGER.info("  └─ %s = %s", field_name, field_value)
+                                    except Exception as e:
+                                        _LOGGER.debug("  └─ %s: error accessing (%s)", field_name, e)
+                    except Exception as e:
+                        _LOGGER.debug("Error exploring custom_properties: %s", e)
+
+                # Check if common_device exists
+                try:
+                    common = hub_dev.common_device
+                    if not common or not hasattr(common, "profile"):
+                        _LOGGER.warning("hub_device has no valid common_device field")
+                        return None
+                except (AttributeError, ValueError) as e:
+                    _LOGGER.warning("hub_device has no common_device field: %s", e)
+                    return None
                 profile = common.profile
 
                 object_type_str = self._get_device_type(common.object_type)
@@ -452,24 +673,30 @@ class AjaxApi:
                 # Parse Hub-specific fields (GSM, WiFi, tamper, external power, etc.)
                 if "hub" in object_type_str.lower():
                     # GSM signal and network status
-                    if hasattr(hub_dev, "gsm") and hub_dev.HasField("gsm"):
-                        gsm = hub_dev.gsm
-                        if hasattr(gsm, "signal_level"):
-                            signal_level_str = str(gsm.signal_level).split("_")[-1]
-                            attributes["gsm_signal_level"] = signal_level_str
-                            _LOGGER.debug("GSM signal level: %s", signal_level_str)
-                        if hasattr(gsm, "network_status"):
-                            network_status_str = str(gsm.network_status).split("_")[-1]
-                            attributes["network_status"] = network_status_str
-                            _LOGGER.debug("Network status: %s", network_status_str)
+                    try:
+                        if hasattr(hub_dev, "gsm") and hub_dev.gsm:
+                            gsm = hub_dev.gsm
+                            if hasattr(gsm, "signal_level"):
+                                signal_level_str = str(gsm.signal_level).split("_")[-1]
+                                attributes["gsm_signal_level"] = signal_level_str
+                                _LOGGER.debug("GSM signal level: %s", signal_level_str)
+                            if hasattr(gsm, "network_status"):
+                                network_status_str = str(gsm.network_status).split("_")[-1]
+                                attributes["network_status"] = network_status_str
+                                _LOGGER.debug("Network status: %s", network_status_str)
+                    except (ValueError, AttributeError) as e:
+                        _LOGGER.debug("Could not parse GSM data: %s", e)
 
                     # WiFi signal
-                    if hasattr(hub_dev, "wifi") and hub_dev.HasField("wifi"):
-                        wifi = hub_dev.wifi
-                        if hasattr(wifi, "signal_level"):
-                            wifi_signal_str = str(wifi.signal_level).split("_")[-1]
-                            attributes["wifi_signal_level"] = wifi_signal_str
-                            _LOGGER.debug("WiFi signal level: %s", wifi_signal_str)
+                    try:
+                        if hasattr(hub_dev, "wifi") and hub_dev.wifi:
+                            wifi = hub_dev.wifi
+                            if hasattr(wifi, "signal_level"):
+                                wifi_signal_str = str(wifi.signal_level).split("_")[-1]
+                                attributes["wifi_signal_level"] = wifi_signal_str
+                                _LOGGER.debug("WiFi signal level: %s", wifi_signal_str)
+                    except (ValueError, AttributeError) as e:
+                        _LOGGER.debug("Could not parse WiFi data: %s", e)
 
                     # Active channels (connection type)
                     if hasattr(hub_dev, "active_channels"):
@@ -489,7 +716,7 @@ class AjaxApi:
                         _LOGGER.debug("Externally powered: %s", hub_dev.externally_powered)
 
                     # Noise level
-                    if hasattr(hub_dev, "noise_level") and hub_dev.HasField("noise_level"):
+                    if hasattr(hub_dev, "noise_level") and hub_dev.noise_level:
                         noise = hub_dev.noise_level
                         if hasattr(noise, "avg_value_channel1"):
                             attributes["noise_level_channel1"] = noise.avg_value_channel1
@@ -507,13 +734,13 @@ class AjaxApi:
                                         avg)
 
                     # Firmware version (from hub firmware field, not profile statuses)
-                    if hasattr(hub_dev, "firmware") and hub_dev.HasField("firmware"):
+                    if hasattr(hub_dev, "firmware") and hub_dev.firmware:
                         if hasattr(hub_dev.firmware, "version") and hub_dev.firmware.version:
                             device_data["firmware_version"] = hub_dev.firmware.version
                             _LOGGER.debug("Firmware version: %s", hub_dev.firmware.version)
 
                     # Hardware versions
-                    if hasattr(hub_dev, "hardware_versions") and hub_dev.HasField("hardware_versions"):
+                    if hasattr(hub_dev, "hardware_versions") and hub_dev.hardware_versions:
                         hw = hub_dev.hardware_versions
                         hw_parts = []
                         if hasattr(hw, "modem") and hw.modem:
@@ -699,6 +926,104 @@ class AjaxApi:
 
         except grpc.RpcError as err:
             _LOGGER.error("gRPC error activating night mode: %s", err)
+            if err.code() == grpc.StatusCode.UNAUTHENTICATED:
+                raise AjaxAuthError("Session expired") from err
+            raise AjaxApiError(f"gRPC error: {err}") from err
+
+    async def async_press_panic_button(self, space_id: str) -> None:
+        """Press the panic button (trigger panic alarm)."""
+        if not self.session_token:
+            raise AjaxAuthError("Not authenticated")
+
+        try:
+            _LOGGER.warning("PANIC BUTTON pressed for space: %s", space_id)
+
+            # Create space locator
+            space_locator = space_locator_pb2.SpaceLocator(space_id=space_id)
+
+            # Create panic button request (optionally with GPS location)
+            request = press_panic_button_request_pb2.PressPanicButtonRequest(
+                space_locator=space_locator,
+                # location is optional - we don't send it for privacy/simplicity
+            )
+
+            # Create stub and call service
+            stub = space_endpoints_pb2_grpc.SpaceServiceStub(self.channel)
+            response = await stub.pressPanicButton(request, metadata=self._get_metadata(include_auth=True))
+
+            # Check response
+            if response.HasField("success"):
+                _LOGGER.warning("Successfully triggered PANIC for space %s", space_id)
+            elif response.HasField("failure"):
+                failure = response.failure
+                error_msg = "Unknown error"
+
+                if failure.HasField("bad_request"):
+                    error_msg = "Bad request"
+                elif failure.HasField("permissions_denied"):
+                    error_msg = "Permission denied"
+                elif failure.HasField("space_not_found"):
+                    error_msg = "Space not found"
+                elif failure.HasField("action_is_limited_in_empty_space"):
+                    error_msg = "Action is limited in empty space"
+                elif failure.HasField("hub_not_allowed_to_perform_command"):
+                    error_msg = "Hub not allowed to perform command"
+
+                _LOGGER.error("Failed to trigger panic: %s", error_msg)
+                raise AjaxApiError(f"Failed to trigger panic: {error_msg}")
+
+        except grpc.RpcError as err:
+            _LOGGER.error("gRPC error triggering panic: %s", err)
+            if err.code() == grpc.StatusCode.UNAUTHENTICATED:
+                raise AjaxAuthError("Session expired") from err
+            raise AjaxApiError(f"gRPC error: {err}") from err
+
+    async def async_stream_space_updates(self, space_id: str):
+        """Stream real-time updates for a space.
+
+        This is a generator that yields space updates as they occur.
+        Should be run in a background task.
+        """
+        if not self.session_token:
+            raise AjaxAuthError("Not authenticated")
+
+        try:
+            _LOGGER.info("Starting real-time stream for space %s", space_id)
+
+            # Create space locator
+            space_locator = space_locator_pb2.SpaceLocator(space_id=space_id)
+
+            # Create stream request
+            request = stream_space_updates_request_pb2.StreamSpaceUpdatesRequest(
+                space_locator=space_locator
+            )
+
+            # Create stub and start streaming
+            stub = space_endpoints_pb2_grpc.SpaceServiceStub(self.channel)
+            response_stream = stub.stream(
+                request, metadata=self._get_metadata(include_auth=True)
+            )
+
+            # Yield updates as they come in
+            async for response in response_stream:
+                if response.HasField("success"):
+                    yield response.success
+                elif response.HasField("failure"):
+                    failure = response.failure
+                    error_msg = "Unknown error"
+
+                    if failure.HasField("bad_request"):
+                        error_msg = "Bad request"
+                    elif failure.HasField("space_not_found"):
+                        error_msg = "Space not found"
+                    elif failure.HasField("permission_denied"):
+                        error_msg = "Permission denied"
+
+                    _LOGGER.error("Stream error for space %s: %s", space_id, error_msg)
+                    raise AjaxApiError(f"Stream error: {error_msg}")
+
+        except grpc.RpcError as err:
+            _LOGGER.error("gRPC error in space stream: %s", err)
             if err.code() == grpc.StatusCode.UNAUTHENTICATED:
                 raise AjaxAuthError("Session expired") from err
             raise AjaxApiError(f"gRPC error: {err}") from err
