@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 import logging
 from typing import Any
 
@@ -32,6 +33,27 @@ _LOGGER = logging.getLogger(__name__)
 
 
 # ==============================================================================
+# Helper Functions
+# ==============================================================================
+
+
+def get_last_alert_timestamp(space: AjaxSpace) -> datetime | None:
+    """Get the last alert/security event timestamp with proper timezone."""
+    if not space.notifications:
+        return None
+
+    for notification in space.notifications:
+        if notification.type.value in ["alarm", "security_event"]:
+            timestamp = notification.timestamp
+            # Ensure timezone is set
+            if timestamp and timestamp.tzinfo is None:
+                return timestamp.replace(tzinfo=timezone.utc)
+            return timestamp
+
+    return None
+
+
+# ==============================================================================
 # Sensor Descriptions
 # ==============================================================================
 
@@ -41,6 +63,7 @@ class AjaxSpaceSensorDescription(SensorEntityDescription):
     """Description for Ajax space-level sensors."""
 
     value_fn: Callable[[AjaxSpace], Any] | None = None
+    entity_category: EntityCategory | None = None
 
 
 @dataclass
@@ -60,6 +83,7 @@ SPACE_SENSORS: tuple[AjaxSpaceSensorDescription, ...] = (
         translation_key="total_devices",
         icon="mdi:devices",
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda space: len(space.devices),
     ),
     AjaxSpaceSensorDescription(
@@ -67,6 +91,7 @@ SPACE_SENSORS: tuple[AjaxSpaceSensorDescription, ...] = (
         translation_key="online_devices",
         icon="mdi:check-network",
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda space: len(space.get_online_devices()),
     ),
     AjaxSpaceSensorDescription(
@@ -74,6 +99,7 @@ SPACE_SENSORS: tuple[AjaxSpaceSensorDescription, ...] = (
         translation_key="devices_with_malfunctions",
         icon="mdi:alert-circle",
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda space: len(space.get_devices_with_malfunctions()),
     ),
     AjaxSpaceSensorDescription(
@@ -81,6 +107,7 @@ SPACE_SENSORS: tuple[AjaxSpaceSensorDescription, ...] = (
         translation_key="unread_notifications",
         icon="mdi:bell-badge",
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda space: space.unread_notifications,
     ),
     AjaxSpaceSensorDescription(
@@ -88,7 +115,15 @@ SPACE_SENSORS: tuple[AjaxSpaceSensorDescription, ...] = (
         translation_key="bypassed_devices",
         icon="mdi:shield-off",
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda space: len(space.get_bypassed_devices()),
+    ),
+    AjaxSpaceSensorDescription(
+        key="last_alert",
+        translation_key="last_alert",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:bell-alert",
+        value_fn=get_last_alert_timestamp,
     ),
 )
 
@@ -110,9 +145,10 @@ DEVICE_SENSORS: tuple[AjaxDeviceSensorDescription, ...] = (
         icon="mdi:signal",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda device: device.signal_strength,
         should_create=lambda device: device.signal_strength is not None,
-        enabled_by_default=True,  # Enabled by default
+        enabled_by_default=True,
     ),
     AjaxDeviceSensorDescription(
         key="temperature",
@@ -136,10 +172,21 @@ DEVICE_SENSORS: tuple[AjaxDeviceSensorDescription, ...] = (
         enabled_by_default=True,
     ),
     AjaxDeviceSensorDescription(
+        key="co2",
+        translation_key="co2",
+        device_class=SensorDeviceClass.CO2,
+        native_unit_of_measurement="ppm",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda device: device.attributes.get("co2"),
+        should_create=lambda device: "co2" in device.attributes,
+        enabled_by_default=True,
+    ),
+    AjaxDeviceSensorDescription(
         key="malfunctions",
         translation_key="malfunctions",
         icon="mdi:alert-circle",
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda device: device.malfunctions,
         should_create=lambda device: True,  # All devices can have malfunctions
         enabled_by_default=False,  # Disabled by default, available for troubleshooting
@@ -190,6 +237,7 @@ DEVICE_METADATA_SENSORS: tuple[AjaxDeviceSensorDescription, ...] = (
         key="device_color",
         translation_key="device_color",
         icon="mdi:palette",
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda device: device.device_color,
         should_create=lambda device: device.device_color is not None,
         enabled_by_default=False,
@@ -198,6 +246,7 @@ DEVICE_METADATA_SENSORS: tuple[AjaxDeviceSensorDescription, ...] = (
         key="device_label",
         translation_key="device_label",
         icon="mdi:label",
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda device: device.device_label,
         should_create=lambda device: device.device_label is not None,
         enabled_by_default=False,
@@ -206,6 +255,7 @@ DEVICE_METADATA_SENSORS: tuple[AjaxDeviceSensorDescription, ...] = (
         key="device_marketing_id",
         translation_key="device_marketing_id",
         icon="mdi:identifier",
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda device: device.device_marketing_id,
         should_create=lambda device: device.device_marketing_id is not None,
         enabled_by_default=False,
@@ -360,6 +410,26 @@ class AjaxSpaceSensor(CoordinatorEntity[AjaxDataCoordinator], SensorEntity):
             "space_name": space.name,
             "hub_id": space.hub_id,
         }
+
+        # Add detailed info for last_alert sensor
+        if self.entity_description.key == "last_alert" and space.notifications:
+            # Get the latest alert/security event
+            for notification in space.notifications:
+                if notification.type.value in ["alarm", "security_event"]:
+                    attributes["event_type"] = notification.title
+                    attributes["device_name"] = notification.device_name
+                    attributes["device_id"] = notification.device_id
+                    attributes["notification_type"] = notification.type.value
+                    attributes["message"] = notification.message
+
+                    # Get room info if device_id is available
+                    if notification.device_id and notification.device_id in space.devices:
+                        device = space.devices[notification.device_id]
+                        if device.room_id and device.room_id in space.rooms:
+                            room = space.rooms[device.room_id]
+                            attributes["room_name"] = room.name
+                            attributes["room_id"] = room.id
+                    break
 
         # Add room breakdown for device-related sensors
         if "device" in self.entity_description.key and space.rooms:

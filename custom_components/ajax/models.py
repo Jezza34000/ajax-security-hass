@@ -42,6 +42,8 @@ class DeviceType(Enum):
     KEYPAD = "keypad"
     REMOTE_CONTROL = "remote_control"
     SIREN = "siren"
+    TRANSMITTER = "transmitter"
+    REPEATER = "repeater"
 
     # Smart Devices
     SOCKET = "socket"
@@ -150,9 +152,16 @@ class AjaxDevice:
         # Check notification type and timing
         # Motion/door sensors auto-reset after a short time
         if self.last_trigger_time:
-            from datetime import timedelta
+            from datetime import timedelta, timezone
+
+            # Make sure both timestamps are timezone-aware
+            now = datetime.now(timezone.utc)
+            trigger_time = self.last_trigger_time
+            if trigger_time.tzinfo is None:
+                trigger_time = trigger_time.replace(tzinfo=timezone.utc)
+
             # Auto-reset after 30 seconds
-            if (datetime.now() - self.last_trigger_time) > timedelta(seconds=30):
+            if (now - trigger_time) > timedelta(seconds=30):
                 return False
 
         # Check notification message for trigger keywords

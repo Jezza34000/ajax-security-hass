@@ -53,6 +53,7 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
         self.api = api
         self.account: AjaxAccount | None = None
         self._streaming_tasks: dict[str, asyncio.Task] = {}  # space_id -> space updates streaming task
+        self._notification_streaming_tasks: dict[str, asyncio.Task] = {}  # space_id -> notification streaming task
 
         super().__init__(
             hass,
@@ -110,6 +111,12 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                 self._streaming_tasks[space_id] = task
                 _LOGGER.info("Started space updates streaming for space %s", space_id)
 
+            # Start notification updates stream if not already running
+            if space_id not in self._notification_streaming_tasks or self._notification_streaming_tasks[space_id].done():
+                task = asyncio.create_task(self._async_stream_notifications(space_id))
+                self._notification_streaming_tasks[space_id] = task
+                _LOGGER.info("Started notification streaming for space %s", space_id)
+
     async def _async_stream_space(self, space_id: str) -> None:
         """Stream updates for a specific space in the background."""
         try:
@@ -124,6 +131,99 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             _LOGGER.error("Error in streaming task for space %s: %s", space_id, err)
             # Wait a bit before coordinator tries to restart it
             await asyncio.sleep(5)
+
+    async def _async_stream_notifications(self, space_id: str) -> None:
+        """Stream real-time notification updates for a specific space."""
+        try:
+            _LOGGER.info("Starting notification streaming for space %s", space_id)
+
+            async for event in self.api.async_stream_notification_updates(space_id):
+                # Process notification event
+                await self._async_process_notification_event(space_id, event)
+
+        except asyncio.CancelledError:
+            _LOGGER.info("Notification streaming cancelled for space %s", space_id)
+            raise
+        except Exception as err:
+            _LOGGER.error("Error in notification streaming for space %s: %s", space_id, err)
+            # Wait a bit before coordinator tries to restart it
+            await asyncio.sleep(5)
+
+    async def _async_process_notification_event(self, space_id: str, event) -> None:
+        """Process a notification event from the stream."""
+        from datetime import datetime, timezone
+
+        try:
+            space = self.account.spaces.get(space_id)
+            if not space:
+                return
+
+            # Check event type
+            if event.HasField("notification_created"):
+                notification_proto = event.notification_created
+                _LOGGER.debug("Received new notification for space %s", space_id)
+
+                # Parse notification
+                notification_data = self.api._parse_notification(notification_proto)
+                if not notification_data:
+                    return
+
+                # Extract event details
+                event_type = notification_data.get("event_type", "")
+                device_id = notification_data.get("device_id")
+                device_name = notification_data.get("device_name", "Device")
+                timestamp = notification_data.get("timestamp") or datetime.now(timezone.utc)
+
+                # Ensure timezone is set
+                if timestamp.tzinfo is None:
+                    timestamp = timestamp.replace(tzinfo=timezone.utc)
+
+                # Determine notification type
+                notif_type = self._parse_notification_type(event_type)
+
+                # Create notification object
+                notification = AjaxNotification(
+                    id=notification_data.get("id", ""),
+                    space_id=space_id,
+                    type=notif_type,
+                    title=event_type.replace("_", " ").title() if event_type else "Event",
+                    message=f"{device_name}: {event_type.replace('_', ' ')}" if event_type else "",
+                    timestamp=timestamp,
+                    device_id=device_id,
+                    device_name=device_name,
+                    read=notification_data.get("read", False),
+                )
+
+                # Add to space notifications list (keep only last 50)
+                space.notifications.insert(0, notification)
+                if len(space.notifications) > 50:
+                    space.notifications = space.notifications[:50]
+
+                # Update device state based on notification
+                if device_id and event_type:
+                    self._update_device_from_notification(space, notification)
+
+                # Trigger update
+                _LOGGER.info(
+                    "Real-time notification: %s - %s (%s)",
+                    device_name,
+                    event_type,
+                    timestamp.strftime("%H:%M:%S"),
+                )
+                self.async_set_updated_data(self.account)
+
+            elif event.HasField("notification_updated"):
+                # Notification was updated (e.g., marked as read)
+                _LOGGER.debug("Notification updated for space %s", space_id)
+                # We could update the notification in our list, but for now just log it
+
+            elif event.HasField("counters_updated"):
+                # Unread counter updated
+                counters = event.counters_updated
+                _LOGGER.debug("Notification counters updated for space %s", space_id)
+
+        except Exception as err:
+            _LOGGER.error("Error processing notification event for space %s: %s", space_id, err)
 
     async def _async_process_stream_update(self, space_id: str, success) -> None:
         """Process a single stream update."""
@@ -330,9 +430,123 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
         if not space:
             return
 
-        # TODO: Implement notification fetching when API method is ready
-        # For now, notifications will be populated via streaming updates
-        pass
+        try:
+            # Fetch notifications from API
+            notifications_data = await self.api.async_find_notifications(space_id, limit)
+            _LOGGER.debug("Received %d notifications for space %s", len(notifications_data), space_id)
+
+            # Clear existing notifications and add new ones
+            space.notifications.clear()
+
+            for notif_data in notifications_data:
+                # Parse notification data
+                from datetime import datetime
+                from .models import AjaxNotification, NotificationType
+
+                # Determine notification type based on event_type
+                event_type = notif_data.get("event_type", "")
+                notif_type = self._parse_notification_type(event_type)
+
+                # Create notification object
+                notification = AjaxNotification(
+                    id=notif_data.get("id", ""),
+                    space_id=notif_data.get("space_id", space_id),
+                    type=notif_type,
+                    title=event_type.replace("_", " ").title() if event_type else "Event",
+                    message=f"{notif_data.get('device_name', 'Device')}: {event_type.replace('_', ' ')}" if event_type else "",
+                    timestamp=notif_data.get("timestamp") or datetime.now(),
+                    device_id=notif_data.get("device_id"),
+                    device_name=notif_data.get("device_name"),
+                    read=notif_data.get("read", False),
+                )
+
+                space.notifications.append(notification)
+
+                # Update device state based on notification event
+                if notification.device_id:
+                    self._update_device_from_notification(space, notification)
+
+            # Update unread count
+            space.unread_notifications = sum(1 for n in space.notifications if not n.read)
+
+            _LOGGER.info(
+                "Updated notifications for space %s: %d total, %d unread",
+                space_id,
+                len(space.notifications),
+                space.unread_notifications,
+            )
+
+        except Exception as err:
+            _LOGGER.error("Error updating notifications for space %s: %s", space_id, err, exc_info=True)
+
+    def _parse_notification_type(self, event_type: str | None) -> NotificationType:
+        """Parse notification type from event type string."""
+        from .models import NotificationType
+
+        if not event_type:
+            return NotificationType.INFO
+
+        event_lower = event_type.lower()
+
+        if any(keyword in event_lower for keyword in ["alarm", "intrusion", "panic", "fire", "smoke", "leak", "gas"]):
+            return NotificationType.ALARM
+        elif any(keyword in event_lower for keyword in ["malfunction", "low", "tamper", "loss", "error", "fault"]):
+            return NotificationType.WARNING
+        elif any(keyword in event_lower for keyword in ["arm", "disarm", "motion", "door", "opened"]):
+            return NotificationType.SECURITY_EVENT
+        elif any(keyword in event_lower for keyword in ["update", "added", "changed", "test"]):
+            return NotificationType.SYSTEM_EVENT
+        else:
+            return NotificationType.INFO
+
+    def _update_device_from_notification(self, space: AjaxSpace, notification: AjaxNotification) -> None:
+        """Update device state based on notification event."""
+        from datetime import datetime
+
+        device = space.devices.get(notification.device_id)
+        if not device:
+            return
+
+        if not notification.title:
+            return
+
+        event_type = notification.title.lower()
+
+        # Update device based on event type
+        if "motion" in event_type:
+            device.attributes["motion_detected"] = True
+            device.attributes["motion_detected_at"] = notification.timestamp
+            device.last_trigger_time = notification.timestamp
+            device.last_notification = notification
+            _LOGGER.debug("Device %s: motion detected at %s", device.name, notification.timestamp)
+
+        elif "door" in event_type and "opened" in event_type:
+            device.attributes["door_opened"] = True
+            device.last_trigger_time = notification.timestamp
+            device.last_notification = notification
+            _LOGGER.debug("Device %s: door opened at %s", device.name, notification.timestamp)
+
+        elif "door" in event_type and "closed" in event_type:
+            device.attributes["door_opened"] = False
+            _LOGGER.debug("Device %s: door closed at %s", device.name, notification.timestamp)
+
+        elif "smoke" in event_type:
+            device.attributes["smoke_detected"] = True
+            device.last_trigger_time = notification.timestamp
+            device.last_notification = notification
+            _LOGGER.debug("Device %s: smoke detected at %s", device.name, notification.timestamp)
+
+        elif "leak" in event_type:
+            device.attributes["leak_detected"] = True
+            device.last_trigger_time = notification.timestamp
+            device.last_notification = notification
+            _LOGGER.debug("Device %s: leak detected at %s", device.name, notification.timestamp)
+
+        elif "tamper" in event_type:
+            device.attributes["tampered"] = True
+            device.last_trigger_time = notification.timestamp
+            device.last_notification = notification
+            _LOGGER.debug("Device %s: tamper detected at %s", device.name, notification.timestamp)
 
     def _parse_security_state(self, state_value: Any) -> SecurityState:
         """Parse security state from API response."""
@@ -397,6 +611,16 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             # Sirens
             "siren": DeviceType.SIREN,
             "alarm": DeviceType.SIREN,
+
+            # Transmitter
+            "transmitter": DeviceType.TRANSMITTER,
+            "integration": DeviceType.TRANSMITTER,
+
+            # Repeater / Range Extender
+            "repeater": DeviceType.REPEATER,
+            "rex": DeviceType.REPEATER,
+            "range_extender": DeviceType.REPEATER,
+            "extender": DeviceType.REPEATER,
 
             # Smart devices
             "socket": DeviceType.SOCKET,
@@ -540,6 +764,18 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                     pass
 
         self._streaming_tasks.clear()
+
+        # Stop all notification streaming tasks
+        for space_id, task in self._notification_streaming_tasks.items():
+            if not task.done():
+                _LOGGER.debug("Cancelling notification streaming task for space %s", space_id)
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+        self._notification_streaming_tasks.clear()
 
         # Close API connection
         await self.api.close()

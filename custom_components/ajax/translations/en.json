@@ -95,6 +95,23 @@
       "bypassed_devices": {
         "name": "Bypassed devices"
       },
+      "last_alert": {
+        "name": "Last alert",
+        "state_attributes": {
+          "event_type": {
+            "name": "Event type"
+          },
+          "device_name": {
+            "name": "Device"
+          },
+          "room_name": {
+            "name": "Room"
+          },
+          "notification_type": {
+            "name": "Notification type"
+          }
+        }
+      },
       "battery": {
         "name": "Battery"
       },
@@ -106,6 +123,9 @@
       },
       "humidity": {
         "name": "Humidity"
+      },
+      "co2": {
+        "name": "CO2"
       },
       "malfunctions": {
         "name": "Malfunctions"
@@ -174,7 +194,10 @@
         "name": "System problems"
       },
       "tamper": {
-        "name": "Cover"
+        "name": "Tamper"
+      },
+      "moisture": {
+        "name": "Moisture"
       },
       "external_power": {
         "name": "External power"

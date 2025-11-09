@@ -64,6 +64,13 @@ from custom_components.ajax.v3.mobilegwsvc.service.stream_hub_device import (
     response_pb2 as stream_device_response_pb2,
 )
 
+# Import notification log service
+from custom_components.ajax.systems.ajax.api.mobile.v2.notificationlog import (
+    notification_log_endpoints_pb2_grpc,
+    find_notifications_pb2 as notification_find_pb2,
+    stream_notification_log_pb2,
+)
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -516,9 +523,12 @@ class AjaxApi:
 
                 for status in profile.statuses:
                     try:
+                        # Battery status
                         if status.HasField("battery"):
                             device_data["battery_level"] = status.battery.charge_level_percentage
                             device_data["battery_state"] = str(status.battery.battery_state).split("_")[-1]
+
+                        # SIM status
                         elif status.HasField("sim_status"):
                             # Log the full SIM status structure
                             _LOGGER.debug("Raw SIM status object: %s", status.sim_status)
@@ -545,9 +555,68 @@ class AjaxApi:
 
                             sim_cards.append(sim_info)
                             _LOGGER.info("Found SIM card slot: status='%s', installed=%s", sim_status_str, sim_info["installed"])
-                    except ValueError as e:
+
+                        # Temperature (simple ValueStatus)
+                        elif status.HasField("temperature"):
+                            # Temperature is in degrees Celsius
+                            attributes["temperature"] = status.temperature.value
+                            _LOGGER.debug("Temperature: %d°C", attributes["temperature"])
+
+                        # Life Quality (temperature, humidity, CO2)
+                        elif status.HasField("life_quality"):
+                            lq = status.life_quality
+                            # Values are in tenths (e.g., 225 = 22.5°C, 450 = 45.0%)
+                            if hasattr(lq, "actual_temperature") and lq.actual_temperature:
+                                attributes["temperature"] = lq.actual_temperature / 10.0
+                            if hasattr(lq, "actual_humidity") and lq.actual_humidity:
+                                attributes["humidity"] = lq.actual_humidity / 10.0
+                            if hasattr(lq, "actual_co2") and lq.actual_co2:
+                                attributes["co2"] = lq.actual_co2
+                            _LOGGER.debug("Life quality - temp: %s, humidity: %s, CO2: %s",
+                                         attributes.get("temperature"),
+                                         attributes.get("humidity"),
+                                         attributes.get("co2"))
+
+                        # Door/window state
+                        elif status.HasField("door_opened"):
+                            attributes["door_opened"] = True
+                            _LOGGER.debug("Door opened detected")
+
+                        # Motion detection
+                        elif status.HasField("motion_detected"):
+                            if hasattr(status.motion_detected, "detected_at"):
+                                attributes["motion_detected"] = True
+                                attributes["motion_detected_at"] = str(status.motion_detected.detected_at)
+                                _LOGGER.debug("Motion detected at: %s", attributes["motion_detected_at"])
+
+                        # Smoke detection
+                        elif status.HasField("smoke_detected"):
+                            attributes["smoke_detected"] = True
+                            _LOGGER.debug("Smoke detected")
+
+                        # Leak detection
+                        elif status.HasField("leak_detected"):
+                            attributes["leak_detected"] = True
+                            _LOGGER.debug("Leak detected")
+
+                        # Tamper (case drilling)
+                        elif status.HasField("case_drilling_detected"):
+                            attributes["tampered"] = True
+                            _LOGGER.debug("Tamper detected (case drilling)")
+
+                        # Signal strength
+                        elif status.HasField("signal_strength"):
+                            if hasattr(status.signal_strength, "device_signal_level"):
+                                signal_str = str(status.signal_strength.device_signal_level).split("_")[-1]
+                                # Convert to percentage estimate
+                                signal_map = {"WEAK": 25, "NORMAL": 50, "STRONG": 75, "EXCELLENT": 100}
+                                device_data["signal_strength"] = signal_map.get(signal_str, 50)
+                                attributes["signal_level"] = signal_str
+                                _LOGGER.debug("Signal level: %s (%d%%)", signal_str, device_data["signal_strength"])
+
+                    except (ValueError, AttributeError) as e:
                         # Some status fields may not exist on all devices
-                        _LOGGER.debug("Error parsing status: %s", e)
+                        _LOGGER.debug("Error parsing status field: %s", e)
                         pass
 
                     # Check for firmware/hardware without HasField (safer)
@@ -1014,6 +1083,217 @@ class AjaxApi:
             if err.code() == grpc.StatusCode.UNAUTHENTICATED:
                 raise AjaxAuthError("Session expired") from err
             raise AjaxApiError(f"gRPC error: {err}") from err
+
+    async def async_find_notifications(
+        self, space_id: str, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        """Find notifications for a space.
+
+        Args:
+            space_id: The space ID to get notifications for
+            limit: Maximum number of notifications to retrieve (default 50)
+
+        Returns:
+            List of notification dictionaries with parsed data
+        """
+        if not self.session_token:
+            raise AjaxAuthError("Not authenticated. Call async_login() first.")
+
+        try:
+            _LOGGER.debug("Fetching notifications for space_id: %s (limit: %d)", space_id, limit)
+
+            # Create filter for the space
+            from custom_components.ajax.systems.ajax.api.ecosystem.v2.communicationsvc.mobile.commonmodels.notification import (
+                filter_pb2 as notification_filter_pb2,
+                origin_id_pb2 as notification_origin_pb2,
+            )
+
+            # Create origin ID (space_id)
+            origin = notification_origin_pb2.NotificationOriginId(
+                space_id=space_id
+            )
+
+            notification_filter = notification_filter_pb2.NotificationsFilter(
+                origin=origin
+            )
+
+            # Create request for finding notifications
+            request = notification_find_pb2.FindNotificationsRequest(
+                filter=notification_filter,
+                limit=limit,
+            )
+
+            # Create stub and call service
+            stub = notification_log_endpoints_pb2_grpc.NotificationLogServiceStub(self.channel)
+            response = await stub.findNotifications(
+                request, metadata=self._get_metadata(include_auth=True)
+            )
+
+            # Check response type
+            if response.HasField("success"):
+                notifications = []
+                _LOGGER.info(
+                    "Received %d notifications for space %s",
+                    len(response.success.notifications),
+                    space_id,
+                )
+
+                # Parse each notification
+                for notification in response.success.notifications:
+                    notification_data = self._parse_notification(notification)
+                    if notification_data:
+                        notifications.append(notification_data)
+
+                return notifications
+
+            elif response.HasField("failure"):
+                _LOGGER.error("Failed to get notifications: %s", response.failure)
+                raise AjaxApiError("Failed to get notifications")
+            else:
+                _LOGGER.warning("Unknown response type received")
+                return []
+
+        except grpc.RpcError as err:
+            _LOGGER.error("gRPC error getting notifications: %s", err)
+            if err.code() == grpc.StatusCode.UNAUTHENTICATED:
+                raise AjaxAuthError("Session expired") from err
+            raise AjaxApiError(f"gRPC error: {err}") from err
+        except (AjaxAuthError, AjaxApiError):
+            raise
+        except Exception as err:
+            _LOGGER.exception("Unexpected error getting notifications")
+            raise AjaxApiError(f"Failed to get notifications: {err}") from err
+
+    async def async_stream_notification_updates(self, space_id: str):
+        """Stream real-time notification updates for a space.
+
+        Args:
+            space_id: The space ID to stream notifications for
+
+        Yields:
+            Notification update events as they arrive
+        """
+        if not self.session_token:
+            raise AjaxAuthError("Not authenticated. Call async_login() first.")
+
+        try:
+            _LOGGER.info("Starting notification streaming for space_id: %s", space_id)
+
+            # Import necessary protobuf types
+            from custom_components.ajax.systems.ajax.api.ecosystem.v2.communicationsvc.mobile.commonmodels.notification import (
+                origin_id_pb2 as notification_origin_pb2,
+            )
+
+            # Create origin ID (space_id)
+            origin = notification_origin_pb2.NotificationOriginId(
+                space_id=space_id
+            )
+
+            # Create streaming request
+            request = stream_notification_log_pb2.StreamNotificationLogRequest(
+                origin=origin
+            )
+
+            # Create stub and start streaming
+            stub = notification_log_endpoints_pb2_grpc.NotificationLogServiceStub(self.channel)
+
+            async for response in stub.streamUpdates(
+                request, metadata=self._get_metadata(include_auth=True)
+            ):
+                # Check response type
+                if response.HasField("success"):
+                    # Process events
+                    for event in response.success.events:
+                        yield event
+
+                elif response.HasField("failure"):
+                    _LOGGER.error("Notification stream failure: %s", response.failure)
+                    raise AjaxApiError("Notification stream failed")
+
+        except grpc.RpcError as err:
+            _LOGGER.error("gRPC error in notification streaming: %s", err)
+            if err.code() == grpc.StatusCode.UNAUTHENTICATED:
+                raise AjaxAuthError("Session expired") from err
+            raise AjaxApiError(f"gRPC error: {err}") from err
+        except (AjaxAuthError, AjaxApiError):
+            raise
+        except Exception as err:
+            _LOGGER.exception("Unexpected error in notification streaming")
+            raise AjaxApiError(f"Failed to stream notifications: {err}") from err
+
+    def _parse_notification(self, notification) -> dict[str, Any] | None:
+        """Parse a notification protobuf message to a dict.
+
+        Args:
+            notification: The notification protobuf message
+
+        Returns:
+            Dictionary with parsed notification data or None if parsing fails
+        """
+        try:
+            notification_data = {
+                "id": notification.id if hasattr(notification, "id") else None,
+                "timestamp": None,
+                "read": notification.read_by_user if hasattr(notification, "read_by_user") else False,
+                "space_id": None,
+                "device_id": None,
+                "device_name": None,
+                "room_id": None,
+                "room_name": None,
+                "event_type": None,
+                "title": None,
+                "message": None,
+            }
+
+            # Parse timestamp
+            if hasattr(notification, "server_timestamp"):
+                timestamp = notification.server_timestamp
+                if timestamp:
+                    notification_data["timestamp"] = timestamp.ToDatetime()
+
+            # Parse space info
+            if hasattr(notification, "space") and notification.space:
+                space = notification.space
+                if hasattr(space, "hex_id"):
+                    notification_data["space_id"] = space.hex_id
+
+            # Parse content - check if it's a hub notification (device events)
+            if hasattr(notification, "content") and notification.content:
+                content = notification.content
+
+                # Hub notifications contain device events
+                if content.HasField("hub_notification_content"):
+                    hub_content = content.hub_notification_content
+
+                    # Parse source (the device that triggered the event)
+                    if hasattr(hub_content, "source") and hub_content.source:
+                        source = hub_content.source
+                        notification_data["device_id"] = source.id if hasattr(source, "id") else None
+                        notification_data["device_name"] = source.name if hasattr(source, "name") else None
+                        notification_data["room_id"] = source.room_hex_id if hasattr(source, "room_hex_id") else None
+                        notification_data["room_name"] = source.room_name if hasattr(source, "room_name") else None
+
+                    # Parse qualifier (event type)
+                    if hasattr(hub_content, "qualifier") and hub_content.qualifier:
+                        qualifier = hub_content.qualifier
+                        if hasattr(qualifier, "tag") and qualifier.tag:
+                            tag = qualifier.tag
+                            # Get the event type from the oneof field
+                            event_tag = tag.WhichOneof("event_tag_case")
+                            if event_tag:
+                                notification_data["event_type"] = event_tag
+                                _LOGGER.debug(
+                                    "Notification event: %s from device %s (%s)",
+                                    event_tag,
+                                    notification_data["device_name"],
+                                    notification_data["device_id"],
+                                )
+
+            return notification_data
+
+        except Exception as err:
+            _LOGGER.debug("Error parsing notification: %s", err, exc_info=True)
+            return None
 
     async def close(self) -> None:
         """Close the gRPC channel."""

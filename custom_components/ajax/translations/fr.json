@@ -136,6 +136,26 @@
       "bypassed_devices": {
         "name": "Dispositifs bypassés"
       },
+      "last_alert": {
+        "name": "Dernière alerte",
+        "state_attributes": {
+          "event_type": {
+            "name": "Type d'événement"
+          },
+          "device_name": {
+            "name": "Dispositif"
+          },
+          "room_name": {
+            "name": "Pièce"
+          },
+          "notification_type": {
+            "name": "Type de notification"
+          }
+        }
+      },
+      "co2": {
+        "name": "CO2"
+      },
       "temperature": {
         "name": "Température"
       },
@@ -216,6 +236,9 @@
       },
       "tamper": {
         "name": "Couvercle"
+      },
+      "moisture": {
+        "name": "Humidité"
       },
       "external_power": {
         "name": "Alimentation externe"
