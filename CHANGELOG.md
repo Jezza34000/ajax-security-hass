@@ -5,7 +5,31 @@ All notable changes to the Ajax Security System integration will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.2] - 2024-11-09
+## [0.2.0] - 2025-11-09
+
+### Added
+- **Real-time notification streaming**: Notifications now arrive instantly via gRPC streaming, eliminating the 30-second polling delay
+- **Binary Sensor platform**: New comprehensive device monitoring
+  - Motion sensors with automatic 30-second reset
+  - Door/Window contact sensors
+  - Smoke detectors
+  - Leak/Water detectors
+  - Tamper sensors (disabled by default)
+- **Last Alert sensor**: Shows most recent security event with timestamp, device name, room location, and event type
+
+### Changed
+- **IoT class**: Updated from `cloud_polling` to `cloud_push` for real-time capabilities
+- **Timezone handling**: Fixed datetime timezone issues causing Home Assistant warnings
+- **French translations**: Complete localization for all new sensors and attributes
+
+### Technical
+- Added `async_stream_notification_updates()` method for real-time notification streaming
+- Implemented background task management for notification streams
+- Enhanced coordinator to process notification events as they arrive
+- Added `_async_process_notification_event()` for instant device state updates
+- Proper cleanup of streaming tasks on shutdown
+
+## [0.1.2] - 2025-11-09
 
 ### Fixed
 - **Critical**: Fixed grpcio dependency conflict with Home Assistant
@@ -16,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Updated manifest.json to use flexible grpcio version constraint
 
-## [0.1.1] - 2024-11-09
+## [0.1.1] - 2025-11-09
 
 ### Fixed
 - Fixed grpcio version compatibility for Home Assistant OS 2025.10.4
@@ -26,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Note
 - This version was superseded by 0.1.2 due to dependency conflicts with newer Home Assistant versions
 
-## [0.1.0] - 2024-11-08
+## [0.1.0] - 2025-11-08
 
 ### Added
 - **Initial release** of Ajax Security System integration
