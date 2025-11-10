@@ -6,7 +6,13 @@
         "description": "Connectez votre système de sécurité Ajax à Home Assistant",
         "data": {
           "email": "Adresse e-mail",
-          "password": "Mot de passe"
+          "password": "Mot de passe",
+          "persistent_notification": "Afficher les notifications persistantes",
+          "notification_filter": "Filtre de notifications"
+        },
+        "data_description": {
+          "persistent_notification": "Créer des notifications persistantes dans Home Assistant",
+          "notification_filter": "Choisir quel type de notifications afficher"
         }
       }
     },
@@ -328,6 +334,16 @@
           "name": "Entité",
           "description": "L'entité du panneau d'alarme à forcer en mode nuit"
         }
+      }
+    }
+  },
+  "selector": {
+    "notification_filter": {
+      "options": {
+        "none": "Aucune",
+        "alarms_only": "Alarmes uniquement",
+        "security_events": "Événements de sécurité (alarmes + armement)",
+        "all": "Toutes les notifications"
       }
     }
   }

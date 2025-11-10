@@ -80,9 +80,6 @@ class AjaxSwitch(CoordinatorEntity[AjaxDataCoordinator], SwitchEntity):
         # Set unique ID
         self._attr_unique_id = f"{device_id}_switch"
 
-        # Set device info
-        self._attr_device_info = coordinator.get_device_info(space_id, device_id)
-
         # Set name (will use device name as base due to has_entity_name=True)
         self._attr_translation_key = "socket"
 
@@ -126,7 +123,7 @@ class AjaxSwitch(CoordinatorEntity[AjaxDataCoordinator], SwitchEntity):
             hub_id = device.hub_id
 
             # Call API to turn on
-            await self.coordinator.api_client.async_turn_on_device(
+            await self.coordinator.api.async_turn_on_device(
                 space_id=self._space_id,
                 device_id=self._device_id,
                 hub_id=hub_id,
@@ -157,7 +154,7 @@ class AjaxSwitch(CoordinatorEntity[AjaxDataCoordinator], SwitchEntity):
             hub_id = device.hub_id
 
             # Call API to turn off
-            await self.coordinator.api_client.async_turn_off_device(
+            await self.coordinator.api.async_turn_off_device(
                 space_id=self._space_id,
                 device_id=self._device_id,
                 hub_id=hub_id,
@@ -175,6 +172,33 @@ class AjaxSwitch(CoordinatorEntity[AjaxDataCoordinator], SwitchEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self.async_write_ha_state()
+
+    @property
+    def device_info(self) -> dict[str, Any]:
+        """Return device information."""
+        device = self._get_device()
+        if not device:
+            return {}
+
+        # Get room name if available
+        room_name = None
+        if device.room_id:
+            space = self.coordinator.get_space(self._space_id)
+            if space and device.room_id in space.rooms:
+                room_name = space.rooms[device.room_id].name
+
+        # Include room name in device name if available
+        device_display_name = f"{room_name} - {device.name}" if room_name else device.name
+
+        return {
+            "identifiers": {(DOMAIN, self._device_id)},
+            "name": f"Ajax {device_display_name}",
+            "manufacturer": "Ajax Systems",
+            "model": device.type.value.replace("_", " ").title(),
+            "via_device": (DOMAIN, self._space_id),
+            "sw_version": device.firmware_version,
+            "hw_version": device.hardware_version,
+        }
 
     def _get_device(self) -> AjaxDevice | None:
         """Get the device from coordinator data."""

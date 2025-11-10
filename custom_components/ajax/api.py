@@ -1578,6 +1578,70 @@ class AjaxApi:
             _LOGGER.exception("Error parsing groups from space: %s", err)
             return result
 
+    def _parse_rooms_from_space(self, space) -> dict[str, dict[str, Any]]:
+        """Parse rooms from a Space protobuf message.
+
+        Args:
+            space: The Space protobuf message from snapshot
+
+        Returns:
+            Dictionary with room ID -> room data mapping
+        """
+        rooms = {}
+
+        try:
+            _LOGGER.debug("_parse_rooms_from_space: Starting to parse rooms")
+            _LOGGER.debug("_parse_rooms_from_space: space type = %s", type(space))
+            _LOGGER.debug("_parse_rooms_from_space: hasattr(space, 'rooms') = %s", hasattr(space, "rooms"))
+
+            # Check if space has rooms field
+            if not hasattr(space, "rooms"):
+                _LOGGER.warning("Space has no 'rooms' attribute")
+                return rooms
+
+            _LOGGER.debug("_parse_rooms_from_space: space.rooms = %s", space.rooms)
+            _LOGGER.debug("_parse_rooms_from_space: type(space.rooms) = %s", type(space.rooms))
+            _LOGGER.debug("_parse_rooms_from_space: len(space.rooms) = %s", len(space.rooms) if space.rooms else 0)
+
+            if not space.rooms:
+                _LOGGER.info("Space has rooms field but it's empty (no rooms configured)")
+                return rooms
+
+            _LOGGER.info("Found %d rooms in space", len(space.rooms))
+
+            for idx, room in enumerate(space.rooms):
+                _LOGGER.debug("_parse_rooms_from_space: Processing room #%d", idx + 1)
+                room_id = room.id if hasattr(room, "id") else None
+                if not room_id:
+                    _LOGGER.warning("Room #%d has no ID, skipping", idx + 1)
+                    continue
+
+                room_name = room.name if hasattr(room, "name") else f"Room {room_id}"
+                _LOGGER.debug("_parse_rooms_from_space: Room %s name = %s", room_id, room_name)
+
+                # Extract image ID if available
+                image_id = None
+                image_url = None
+                if hasattr(room, "images") and room.images:
+                    images = room.images
+                    if hasattr(images, "light") and images.light:
+                        image_id = images.light if isinstance(images.light, str) else None
+
+                rooms[room_id] = {
+                    "id": room_id,
+                    "name": room_name,
+                    "image_id": image_id,
+                    "image_url": image_url,
+                }
+                _LOGGER.debug("_parse_rooms_from_space: Added room %s to dictionary", room_id)
+
+            _LOGGER.info("Successfully parsed %d rooms from space", len(rooms))
+            return rooms
+
+        except Exception as err:
+            _LOGGER.exception("Error parsing rooms from space: %s", err)
+            return rooms
+
     async def async_turn_on_device(self, space_id: str, device_id: str, hub_id: str, channel_id: int = 1) -> None:
         """Turn on a device (socket/relay).
 

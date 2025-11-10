@@ -6,7 +6,13 @@
         "description": "Connect your Ajax security system to Home Assistant",
         "data": {
           "email": "Email address",
-          "password": "Password"
+          "password": "Password",
+          "persistent_notification": "Show persistent notifications",
+          "notification_filter": "Notification filter"
+        },
+        "data_description": {
+          "persistent_notification": "Create persistent notifications in Home Assistant",
+          "notification_filter": "Choose which type of notifications to display"
         }
       }
     },
@@ -287,6 +293,16 @@
           "name": "Entity",
           "description": "The alarm control panel entity to force arm in night mode"
         }
+      }
+    }
+  },
+  "selector": {
+    "notification_filter": {
+      "options": {
+        "none": "None",
+        "alarms_only": "Alarms only",
+        "security_events": "Security events (alarms + arming)",
+        "all": "All notifications"
       }
     }
   }

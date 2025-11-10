@@ -541,9 +541,19 @@ class AjaxDeviceSensor(CoordinatorEntity[AjaxDataCoordinator], SensorEntity):
             }
 
         # For non-hub devices, use device identifier
+        # Get room name if available
+        room_name = None
+        if device.room_id:
+            space = self.coordinator.get_space(self._space_id)
+            if space and device.room_id in space.rooms:
+                room_name = space.rooms[device.room_id].name
+
+        # Include room name in device name if available
+        device_display_name = f"{room_name} - {device.name}" if room_name else device.name
+
         return {
             "identifiers": {(DOMAIN, self._device_id)},
-            "name": f"Ajax {device.name}",
+            "name": f"Ajax {device_display_name}",
             "manufacturer": "Ajax Systems",
             "model": device.type.value.replace("_", " ").title(),
             "via_device": (DOMAIN, self._space_id),

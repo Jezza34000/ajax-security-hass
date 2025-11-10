@@ -280,7 +280,7 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                 _LOGGER.debug("Notification counters updated for space %s", space_id)
 
         except Exception as err:
-            _LOGGER.error("Error processing notification event for space %s: %s", space_id, err)
+            _LOGGER.error("Error processing notification event for space %s: %s", space_id, err, exc_info=True)
 
     async def _async_parse_groups_from_snapshot(self, space_id: str, space_protobuf) -> None:
         """Parse groups from Space snapshot and update the data model.
@@ -291,7 +291,7 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
         """
         try:
             # Use the API client's parsing method
-            groups_data = self.api_client._parse_groups_from_space(space_protobuf)
+            groups_data = self.api._parse_groups_from_space(space_protobuf)
 
             # Get the space from our account
             if not self.account or space_id not in self.account.spaces:
@@ -341,15 +341,87 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
         except Exception as err:
             _LOGGER.exception("Error parsing groups from snapshot: %s", err)
 
+    async def _async_parse_rooms_from_snapshot(self, space_id: str, space_protobuf) -> None:
+        """Parse rooms from Space snapshot and update the data model.
+
+        Args:
+            space_id: The space ID
+            space_protobuf: The Space protobuf message
+        """
+        try:
+            _LOGGER.debug("_async_parse_rooms_from_snapshot: Called for space %s", space_id)
+            _LOGGER.debug("_async_parse_rooms_from_snapshot: space_protobuf type = %s", type(space_protobuf))
+
+            # Use the API client's parsing method
+            rooms_data = self.api._parse_rooms_from_space(space_protobuf)
+
+            _LOGGER.debug("_async_parse_rooms_from_snapshot: Received %d rooms from parser", len(rooms_data))
+
+            # Get the space from our account
+            if not self.account or space_id not in self.account.spaces:
+                _LOGGER.warning("Space %s not found in account", space_id)
+                return
+
+            space = self.account.spaces[space_id]
+            _LOGGER.debug("_async_parse_rooms_from_snapshot: Space found, current rooms count = %d", len(space.rooms))
+
+            # Convert parsed rooms to AjaxRoom objects
+            for room_id, room_data in rooms_data.items():
+                _LOGGER.debug("_async_parse_rooms_from_snapshot: Creating AjaxRoom for %s", room_id)
+                # Create or update the room
+                ajax_room = AjaxRoom(
+                    id=room_id,
+                    name=room_data["name"],
+                    space_id=space_id,
+                    image_id=room_data.get("image_id"),
+                    image_url=room_data.get("image_url"),
+                )
+
+                space.rooms[room_id] = ajax_room
+
+            _LOGGER.info(
+                "Updated space %s with %d rooms",
+                space_id,
+                len(space.rooms),
+            )
+
+        except Exception as err:
+            _LOGGER.exception("Error parsing rooms from snapshot: %s", err)
+
     async def _async_process_stream_update(self, space_id: str, success) -> None:
         """Process a single stream update."""
         try:
             # Check if it's a snapshot (initial data) or an update
             if success.HasField("snapshot"):
                 _LOGGER.debug("Received snapshot for space %s", space_id)
-                # Parse groups from the snapshot
-                if hasattr(success.snapshot, "space") and success.snapshot.space:
-                    await self._async_parse_groups_from_snapshot(space_id, success.snapshot.space)
+                _LOGGER.debug("Snapshot type: %s", type(success.snapshot))
+                _LOGGER.debug("Snapshot has 'space' attr: %s", hasattr(success.snapshot, "space"))
+
+                # List all fields in snapshot to see what's available
+                if hasattr(success.snapshot, "DESCRIPTOR"):
+                    snapshot_fields = [f.name for f in success.snapshot.DESCRIPTOR.fields]
+                    _LOGGER.debug("Snapshot available fields: %s", snapshot_fields)
+
+                    # Check which fields are actually set (skip fields that don't support HasField)
+                    set_fields = []
+                    for field in success.snapshot.DESCRIPTOR.fields:
+                        try:
+                            if success.snapshot.HasField(field.name):
+                                set_fields.append(field.name)
+                        except ValueError:
+                            # Field doesn't support HasField (repeated or scalar field)
+                            # Check if it has a value
+                            value = getattr(success.snapshot, field.name, None)
+                            if value:
+                                set_fields.append(f"{field.name} (no presence)")
+                    _LOGGER.debug("Snapshot fields that are set: %s", set_fields)
+
+                # The snapshot IS the Space object, parse it directly
+                _LOGGER.debug("Parsing groups and rooms from snapshot")
+                await self._async_parse_groups_from_snapshot(space_id, success.snapshot)
+                _LOGGER.debug("Groups parsed, now parsing rooms")
+                await self._async_parse_rooms_from_snapshot(space_id, success.snapshot)
+                _LOGGER.debug("Rooms parsed")
                 # Trigger a refresh to ensure consistency
                 self.async_set_updated_data(self.account)
 
@@ -817,6 +889,10 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             if notif_type not in [NotificationType.ALARM, NotificationType.SECURITY_EVENT]:
                 return
         # NOTIFICATION_FILTER_ALL: show all notifications (no filter)
+
+        # Ensure we have a valid message
+        if not formatted_message:
+            return
 
         # Create persistent notification in Home Assistant
         await self.hass.services.async_call(
