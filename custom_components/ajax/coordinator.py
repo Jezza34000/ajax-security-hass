@@ -1303,13 +1303,7 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
 
         try:
             await self.api.async_arm(space_id, force=force)
-
-            # Update local state optimistically
-            if space_id in self.account.spaces:
-                self.account.spaces[space_id].security_state = SecurityState.ARMED
-
-            # Request immediate data refresh
-            await self.async_request_refresh()
+            # State will be updated via real-time stream to avoid race conditions
 
         except AjaxApiError as err:
             _LOGGER.error("Failed to arm space %s: %s", space_id, err)
@@ -1321,13 +1315,7 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
 
         try:
             await self.api.async_disarm(space_id)
-
-            # Update local state optimistically
-            if space_id in self.account.spaces:
-                self.account.spaces[space_id].security_state = SecurityState.DISARMED
-
-            # Request immediate data refresh
-            await self.async_request_refresh()
+            # State will be updated via real-time stream to avoid race conditions
 
         except AjaxApiError as err:
             _LOGGER.error("Failed to disarm space %s: %s", space_id, err)
@@ -1344,13 +1332,7 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
 
         try:
             await self.api.async_arm_night_mode(space_id, force=force)
-
-            # Update local state optimistically
-            if space_id in self.account.spaces:
-                self.account.spaces[space_id].security_state = SecurityState.NIGHT_MODE
-
-            # Request immediate data refresh
-            await self.async_request_refresh()
+            # State will be updated via real-time stream to avoid race conditions
 
         except AjaxApiError as err:
             _LOGGER.error("Failed to activate night mode for space %s: %s", space_id, err)
@@ -1368,16 +1350,7 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
 
         try:
             await self.api.async_arm_group(space_id, group_id, force=force)
-
-            # Update local state optimistically
-            if space_id in self.account.spaces:
-                space = self.account.spaces[space_id]
-                if group_id in space.groups:
-                    from .models import GroupState
-                    space.groups[group_id].state = GroupState.ARMED
-
-            # Request immediate data refresh
-            await self.async_request_refresh()
+            # State will be updated via real-time stream to avoid race conditions
 
         except AjaxApiError as err:
             _LOGGER.error("Failed to arm group %s in space %s: %s", group_id, space_id, err)
@@ -1394,16 +1367,7 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
 
         try:
             await self.api.async_disarm_group(space_id, group_id)
-
-            # Update local state optimistically
-            if space_id in self.account.spaces:
-                space = self.account.spaces[space_id]
-                if group_id in space.groups:
-                    from .models import GroupState
-                    space.groups[group_id].state = GroupState.DISARMED
-
-            # Request immediate data refresh
-            await self.async_request_refresh()
+            # State will be updated via real-time stream to avoid race conditions
 
         except AjaxApiError as err:
             _LOGGER.error("Failed to disarm group %s in space %s: %s", group_id, space_id, err)
@@ -1415,9 +1379,7 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
 
         try:
             await self.api.async_press_panic_button(space_id)
-
-            # Request immediate data refresh to get updated state
-            await self.async_request_refresh()
+            # No state update needed, panic is instantaneous
 
         except AjaxApiError as err:
             _LOGGER.error("Failed to trigger panic for space %s: %s", space_id, err)
