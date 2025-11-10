@@ -109,6 +109,8 @@ Issues, pull requests, and feedback are welcome!
      - **All notifications**: All notifications including device events
 5. Click **Submit**
 
+![Configuration](config.png)
+
 The integration will automatically discover all your Ajax devices and create entities for them.
 
 ## 🔒 Security & Privacy
@@ -399,6 +401,8 @@ Les issues, pull requests et retours d'expérience sont les bienvenus !
      - **Événements de sécurité** : Alarmes + événements d'armement/désarmement
      - **Toutes les notifications** : Toutes les notifications incluant les événements des appareils
 5. Cliquez sur **Soumettre**
+
+![Configuration](config.png)
 
 L'intégration découvrira automatiquement tous vos appareils Ajax et créera des entités pour eux.
 
