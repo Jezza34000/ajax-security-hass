@@ -5,6 +5,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/foXaCe?style=flat&logo=github&label=Sponsor&color=ea4aaa)](https://github.com/sponsors/foXaCe)
 
 **Full-featured** Home Assistant integration for Ajax Security Systems via the official Cloud API with **real-time synchronization**.
 
@@ -139,7 +140,7 @@ The integration will automatically discover all your Ajax devices and create ent
 
 ### Security Recommendations
 - Use a strong, unique password for your Ajax account
-- ⚠️ **Two-factor authentication (2FA) is not yet supported** - you must disable 2FA on your Ajax account to use this integration
+- ✅ **Two-factor authentication (2FA) is fully supported** - you can keep 2FA enabled on your Ajax account for enhanced security
 - Ensure your Home Assistant instance is properly secured (HTTPS, strong passwords, firewall)
 - Keep Home Assistant and this integration up to date
 
@@ -323,6 +324,8 @@ The integration accesses your Ajax account using your credentials. Your credenti
 
 If this integration is useful to you, you can support its development:
 
+💖 **[GitHub Sponsors](https://github.com/sponsors/foXaCe)** - Support via GitHub
+
 🪙 **Bitcoin**: `bc1qhe4ge22x0anuyeg0fmts6rdmz3t735dnqwt3p7`
 
 Your contributions help improve this project and add new features. Thank you! 🙏
@@ -462,7 +465,7 @@ L'intégration découvrira automatiquement tous vos appareils Ajax et créera de
 
 ### Recommandations de Sécurité
 - Utilisez un mot de passe fort et unique pour votre compte Ajax
-- ⚠️ **L'authentification à deux facteurs (2FA) n'est pas encore supportée** - vous devez désactiver le 2FA sur votre compte Ajax pour utiliser cette intégration
+- ✅ **L'authentification à deux facteurs (2FA) est entièrement supportée** - vous pouvez garder le 2FA activé sur votre compte Ajax pour une sécurité renforcée
 - Assurez-vous que votre instance Home Assistant est correctement sécurisée (HTTPS, mots de passe forts, pare-feu)
 - Maintenez Home Assistant et cette intégration à jour
 
@@ -645,6 +648,8 @@ L'intégration accède à votre compte Ajax en utilisant vos identifiants. Vos i
 ## 💰 Soutenir le Projet
 
 Si cette intégration vous est utile, vous pouvez soutenir son développement :
+
+💖 **[GitHub Sponsors](https://github.com/sponsors/foXaCe)** - Soutenir via GitHub
 
 🪙 **Bitcoin** : `bc1qhe4ge22x0anuyeg0fmts6rdmz3t735dnqwt3p7`
 
