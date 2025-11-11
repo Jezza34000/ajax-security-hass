@@ -126,6 +126,7 @@ class AjaxApi:
         device_id: str,
         device_model: str = DEFAULT_DEVICE_MODEL,
         password_is_hashed: bool = False,
+        session_token: str | None = None,
     ) -> None:
         """Initialize the Ajax API client.
 
@@ -135,6 +136,7 @@ class AjaxApi:
             device_id: Device identifier
             device_model: Device model name
             password_is_hashed: If True, password is already SHA256 hashed
+            session_token: Optional session token from previous authentication (hex string)
         """
         self.email = email
         self.password = password
@@ -142,7 +144,8 @@ class AjaxApi:
         self.device_model = device_model
         self.password_is_hashed = password_is_hashed
 
-        self.session_token: bytes | None = None
+        # Restore session token if provided (convert from hex string to bytes)
+        self.session_token: bytes | None = bytes.fromhex(session_token) if session_token else None
         self.user_id: str | None = None
         self.user_name: str | None = None
 

@@ -14,7 +14,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 
 from .api import AjaxApi, AjaxApiError, AjaxAuthError
-from .const import DOMAIN
+from .const import DOMAIN, CONF_SESSION_TOKEN
 from .coordinator import AjaxDataCoordinator
 
 if TYPE_CHECKING:
@@ -67,15 +67,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     email = entry.data[CONF_EMAIL]
     password = entry.data[CONF_PASSWORD]
     device_id = entry.entry_id  # Use entry ID as unique device ID
+    session_token = entry.data.get(CONF_SESSION_TOKEN)
 
     # Create API instance
     # Password is already hashed (SHA256) in config entry
-    api = AjaxApi(email=email, password=password, device_id=device_id, password_is_hashed=True)
+    # Use session token if available to avoid 2FA requirement
+    api = AjaxApi(
+        email=email,
+        password=password,
+        device_id=device_id,
+        password_is_hashed=True,
+        session_token=session_token,
+    )
 
     try:
-        # Authenticate
-        await api.async_login()
-        _LOGGER.info("Successfully authenticated with Ajax API")
+        # Authenticate only if we don't have a valid session token
+        # If session token is available, it will be used automatically in API calls
+        if not session_token:
+            await api.async_login()
+            _LOGGER.info("Successfully authenticated with Ajax API")
+
+            # Store the session token for future use
+            new_data = dict(entry.data)
+            new_data[CONF_SESSION_TOKEN] = api.session_token.hex() if api.session_token else None
+            hass.config_entries.async_update_entry(entry, data=new_data)
+        else:
+            _LOGGER.info("Using existing session token for authentication")
 
     except AjaxAuthError as err:
         _LOGGER.error("Authentication failed: %s", err)

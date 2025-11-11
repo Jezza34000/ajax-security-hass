@@ -19,6 +19,7 @@ from .api import AjaxApi, AjaxApiError, AjaxAuthError, Ajax2FARequiredError
 from .const import (
     DOMAIN,
     CONF_DEVICE_ID,
+    CONF_SESSION_TOKEN,
     CONF_PERSISTENT_NOTIFICATION,
     CONF_NOTIFICATION_FILTER,
     NOTIFICATION_FILTER_NONE,
@@ -54,25 +55,27 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     """Validate the user input allows us to connect.
 
     Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
-    Note: password in data is already hashed by async_step_user.
+    Note: password is in plain text here - API will hash it for authentication.
     """
     # Generate a unique device ID if not provided
     device_id = data.get(CONF_DEVICE_ID)
     if not device_id:
         device_id = f"homeassistant_{uuid.uuid4().hex[:16]}"
 
-    # Password is already hashed by async_step_user
-    # Create API client with hashed password
+    # Create API client with plain password (API will hash it)
     api = AjaxApi(
         email=data[CONF_EMAIL],
-        password=data[CONF_PASSWORD],  # Already hashed
+        password=data[CONF_PASSWORD],
         device_id=device_id,
-        password_is_hashed=True,
+        password_is_hashed=False,
     )
 
     # Try to authenticate
     try:
         login_result = await api.async_login()
+    except Ajax2FARequiredError:
+        # Re-raise 2FA exception to be handled in async_step_user
+        raise
     except AjaxAuthError as err:
         raise InvalidAuth from err
     except AjaxApiError as err:
@@ -107,18 +110,17 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Hash password immediately and replace in user_input
-            # This ensures we only store the hash, never the plain password
-            password_hash = hashlib.sha256(user_input[CONF_PASSWORD].encode()).hexdigest()
-            user_input[CONF_PASSWORD] = password_hash
-
             try:
+                # Validate with plain password (API will hash it for authentication)
                 info = await validate_input(self.hass, user_input)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
                 errors["base"] = "invalid_auth"
             except Ajax2FARequiredError as err:
+                # Hash password before storing for TOTP step
+                password_hash = hashlib.sha256(user_input[CONF_PASSWORD].encode()).hexdigest()
+                user_input[CONF_PASSWORD] = password_hash
                 # Store request_id and user input (with hashed password), then go to TOTP step
                 self._totp_request_id = err.request_id
                 self._user_input = user_input
@@ -127,6 +129,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
+                # Hash password before storing in config entry
+                password_hash = hashlib.sha256(user_input[CONF_PASSWORD].encode()).hexdigest()
+                user_input[CONF_PASSWORD] = password_hash
                 # Set unique ID based on user ID
                 await self.async_set_unique_id(info["user_id"])
                 self._abort_if_unique_id_configured()
@@ -139,7 +144,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 try:
                     from .api import AjaxApi
                     api = AjaxApi(user_input[CONF_EMAIL], user_input[CONF_PASSWORD], info["device_id"], password_is_hashed=True)
-                    await api.async_login()
+                    login_result = await api.async_login()
+
+                    # Store session token for future use
+                    info["session_token"] = login_result.get("session_token")
+
                     self._spaces = await api.async_get_spaces()
                     await api.close()
 
@@ -192,11 +201,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         self._totp_request_id, totp_code
                     )
 
-                    # Login successful, store info
+                    # Login successful, store info including session token
                     self._info = {
                         "title": f"Ajax - {login_result.get('user_name', self._user_input[CONF_EMAIL])}",
                         "device_id": device_id,
                         "user_id": login_result.get("user_id"),
+                        "session_token": login_result.get("session_token"),
                     }
 
                     # Set unique ID based on user ID
@@ -255,13 +265,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not selected_spaces:
                 errors["base"] = "no_spaces_selected"
             else:
-                # Create config entry with selected spaces
+                # Create config entry with selected spaces and session token
                 return self.async_create_entry(
                     title=self._info["title"],
                     data={
                         CONF_EMAIL: self._user_input[CONF_EMAIL],
                         CONF_PASSWORD: self._user_input[CONF_PASSWORD],
                         CONF_DEVICE_ID: self._info["device_id"],
+                        CONF_SESSION_TOKEN: self._info.get("session_token"),
                         "selected_spaces": selected_spaces,
                     },
                     options={
