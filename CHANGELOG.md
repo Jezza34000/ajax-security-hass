@@ -5,6 +5,24 @@ All notable changes to the Ajax Security System integration will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.9] - 2025-11-11
+
+### Fixed
+- **Fixed night mode detection** (Fixes #18)
+  - Night mode now checks `night_mode_enabled` flag BEFORE armed status
+  - Ajax night mode sets flag without arming groups
+  - Alarm control panel now correctly shows "armed_night" state
+- Fixed critical bugs found by ruff linting
+  - Removed duplicate `device_info` property in alarm_control_panel.py
+  - Added missing `GroupState` import in coordinator.py
+  - Removed undefined `batch_mode` variable
+
+### Changed
+- Added ruff code quality checks (linting only, no formatting)
+- Added GitHub Security scanning with CodeQL
+- Added Dependabot for automated dependency updates
+- Updated GitHub Actions to latest versions
+
 ## [0.4.8] - 2025-11-11
 
 ### Changed
