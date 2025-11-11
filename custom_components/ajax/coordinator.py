@@ -594,22 +594,35 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
 
                             # Determine overall space security state based on armed groups
                             armed_groups = [g for g in space.groups.values() if g.state == GroupState.ARMED]
+                            _LOGGER.debug(
+                                "Night mode detection for space %s: %d/%d groups armed, groups: %s",
+                                space.name,
+                                len(armed_groups),
+                                len(space.groups),
+                                {g.name: {"state": g.state, "night_mode": g.night_mode_enabled} for g in space.groups.values()}
+                            )
+
                             if not armed_groups:
                                 space.security_state = SecurityState.DISARMED
+                                _LOGGER.debug("Space %s: DISARMED (no armed groups)", space.name)
                             elif len(armed_groups) == len(space.groups):
                                 # Check if all armed groups have night mode enabled
                                 all_night_mode = all(g.night_mode_enabled for g in armed_groups)
                                 if all_night_mode:
                                     space.security_state = SecurityState.NIGHT_MODE
+                                    _LOGGER.info("Space %s: NIGHT_MODE (all %d groups armed with night mode)", space.name, len(armed_groups))
                                 else:
                                     space.security_state = SecurityState.ARMED
+                                    _LOGGER.debug("Space %s: ARMED (all %d groups armed, night mode: %s)", space.name, len(armed_groups), [g.night_mode_enabled for g in armed_groups])
                             else:
                                 # Partially armed - check if any armed groups have night mode
                                 any_night_mode = any(g.night_mode_enabled for g in armed_groups if g.state == GroupState.ARMED)
                                 if any_night_mode:
                                     space.security_state = SecurityState.NIGHT_MODE
+                                    _LOGGER.info("Space %s: NIGHT_MODE (partial: %d/%d groups armed, at least one with night mode)", space.name, len(armed_groups), len(space.groups))
                                 else:
                                     space.security_state = SecurityState.PARTIALLY_ARMED
+                                    _LOGGER.debug("Space %s: PARTIALLY_ARMED (%d/%d groups armed, no night mode)", space.name, len(armed_groups), len(space.groups))
 
                             if not batch_mode:
                                 self.async_set_updated_data(self.account)
