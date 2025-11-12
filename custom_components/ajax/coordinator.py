@@ -847,6 +847,8 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
 
         devices_data = await self.api.async_get_devices(space_id)
 
+        new_devices_count = 0
+
         for device_data in devices_data:
             device_id = device_data.get("id")
             if not device_id:
@@ -869,6 +871,7 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                     group_id=device_data.get("group_id"),
                 )
                 space.devices[device_id] = device
+                new_devices_count += 1
 
                 # Log warning for unknown device types
                 if device_type == DeviceType.UNKNOWN:
@@ -880,7 +883,7 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                         device_id,
                     )
                 else:
-                    _LOGGER.info("Added new device: %s (%s)", device.name, device.type.value)
+                    _LOGGER.debug("Added new device: %s (%s)", device.name, device.type.value)
             else:
                 device = space.devices[device_id]
                 # Update raw_type in case it changed
@@ -926,6 +929,11 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                 room = space.rooms[device.room_id]
                 if device_id not in room.device_ids:
                     room.device_ids.append(device_id)
+
+        # Log summary of devices loaded
+        if new_devices_count > 0:
+            _LOGGER.info("Discovered %d new device(s) in space %s", new_devices_count, space_id)
+        _LOGGER.debug("Total devices in space %s: %d", space_id, len(space.devices))
 
     async def _async_update_notifications(
         self, space_id: str, limit: int = 50

@@ -998,7 +998,7 @@ class AjaxApi:
             raise AjaxAuthError("Not authenticated")
 
         try:
-            _LOGGER.info("Arming space: %s (force=%s)", space_id, force)
+            _LOGGER.debug("Arming space: %s (force=%s)", space_id, force)
 
             # Create space locator
             space_locator = space_locator_pb2.SpaceLocator(space_id=space_id)
@@ -1015,7 +1015,7 @@ class AjaxApi:
 
             # Check response
             if response.HasField("success"):
-                _LOGGER.info("Successfully armed space %s", space_id)
+                _LOGGER.debug("Successfully armed space %s", space_id)
             elif response.HasField("failure"):
                 failure = response.failure
                 error_msg = "Unknown error"
@@ -1030,7 +1030,7 @@ class AjaxApi:
                     error_msg = "Permission denied"
                 elif failure.HasField("already_in_the_requested_security_state"):
                     # This is not really an error - just log and return success
-                    _LOGGER.info("Space %s is already armed", space_id)
+                    _LOGGER.debug("Space %s is already armed", space_id)
                     return
                 elif failure.HasField("space_locked"):
                     error_msg = "Space is locked"
@@ -1050,7 +1050,7 @@ class AjaxApi:
             raise AjaxAuthError("Not authenticated")
 
         try:
-            _LOGGER.info("Disarming space: %s", space_id)
+            _LOGGER.debug("Disarming space: %s", space_id)
 
             # Create space locator
             space_locator = space_locator_pb2.SpaceLocator(space_id=space_id)
@@ -1066,7 +1066,7 @@ class AjaxApi:
 
             # Check response
             if response.HasField("success"):
-                _LOGGER.info("Successfully disarmed space %s", space_id)
+                _LOGGER.debug("Successfully disarmed space %s", space_id)
             elif response.HasField("failure"):
                 failure = response.failure
                 error_msg = "Unknown error"
@@ -1079,7 +1079,7 @@ class AjaxApi:
                     error_msg = "Permission denied"
                 elif failure.HasField("already_in_the_requested_security_state"):
                     # This is not really an error - just log and return success
-                    _LOGGER.info("Space %s is already disarmed", space_id)
+                    _LOGGER.debug("Space %s is already disarmed", space_id)
                     return
                 elif failure.HasField("space_locked"):
                     error_msg = "Space is locked"
@@ -1121,7 +1121,7 @@ class AjaxApi:
 
             # Check response
             if response.HasField("success"):
-                _LOGGER.info("Successfully armed space %s to night mode", space_id)
+                _LOGGER.debug("Successfully armed space %s to night mode", space_id)
             elif response.HasField("failure"):
                 failure = response.failure
                 error_msg = "Unknown error"
@@ -1162,7 +1162,7 @@ class AjaxApi:
             raise AjaxAuthError("Not authenticated")
 
         try:
-            _LOGGER.info("Arming group %s in space %s (force=%s)", group_id, space_id, force)
+            _LOGGER.debug("Arming group %s in space %s (force=%s)", group_id, space_id, force)
 
             # Create space locator
             space_locator = space_locator_pb2.SpaceLocator(space_id=space_id)
@@ -1180,7 +1180,7 @@ class AjaxApi:
 
             # Check response
             if response.HasField("success"):
-                _LOGGER.info("Successfully armed group %s in space %s", group_id, space_id)
+                _LOGGER.debug("Successfully armed group %s in space %s", group_id, space_id)
             elif response.HasField("failure"):
                 failure = response.failure
                 error_msg = "Unknown error"
@@ -1194,7 +1194,7 @@ class AjaxApi:
                 elif failure.HasField("permission_denied"):
                     error_msg = "Permission denied"
                 elif failure.HasField("already_in_the_requested_security_state"):
-                    _LOGGER.info("Group %s is already armed", group_id)
+                    _LOGGER.debug("Group %s is already armed", group_id)
                     return
                 elif failure.HasField("space_locked"):
                     error_msg = "Space is locked"
@@ -1221,7 +1221,7 @@ class AjaxApi:
             raise AjaxAuthError("Not authenticated")
 
         try:
-            _LOGGER.info("Disarming group %s in space %s", group_id, space_id)
+            _LOGGER.debug("Disarming group %s in space %s", group_id, space_id)
 
             # Create space locator
             space_locator = space_locator_pb2.SpaceLocator(space_id=space_id)
@@ -1238,7 +1238,7 @@ class AjaxApi:
 
             # Check response
             if response.HasField("success"):
-                _LOGGER.info("Successfully disarmed group %s in space %s", group_id, space_id)
+                _LOGGER.debug("Successfully disarmed group %s in space %s", group_id, space_id)
             elif response.HasField("failure"):
                 failure = response.failure
                 error_msg = "Unknown error"
@@ -1250,7 +1250,7 @@ class AjaxApi:
                 elif failure.HasField("permission_denied"):
                     error_msg = "Permission denied"
                 elif failure.HasField("already_in_the_requested_security_state"):
-                    _LOGGER.info("Group %s is already disarmed", group_id)
+                    _LOGGER.debug("Group %s is already disarmed", group_id)
                     return
                 elif failure.HasField("space_locked"):
                     error_msg = "Space is locked"
@@ -1886,7 +1886,7 @@ class AjaxApi:
             raise AjaxAuthError("Not authenticated")
 
         try:
-            _LOGGER.info("Turning on device %s (channel %d)", device_id, channel_id)
+            _LOGGER.debug("Turning on device %s (channel %d)", device_id, channel_id)
 
             # Get device type - need to fetch device info
             # For now, assume socket type
@@ -1919,7 +1919,7 @@ class AjaxApi:
 
             # Check response
             if response.HasField("success"):
-                _LOGGER.info("Successfully turned on device %s", device_id)
+                _LOGGER.debug("Successfully turned on device %s", device_id)
             elif response.HasField("failure"):
                 failure = response.failure
                 error_msg = "Unknown error"
@@ -1954,7 +1954,7 @@ class AjaxApi:
             raise AjaxAuthError("Not authenticated")
 
         try:
-            _LOGGER.info("Turning off device %s (channel %d)", device_id, channel_id)
+            _LOGGER.debug("Turning off device %s (channel %d)", device_id, channel_id)
 
             # Get device type - need to fetch device info
             # For now, assume socket type
@@ -1987,7 +1987,7 @@ class AjaxApi:
 
             # Check response
             if response.HasField("success"):
-                _LOGGER.info("Successfully turned off device %s", device_id)
+                _LOGGER.debug("Successfully turned off device %s", device_id)
             elif response.HasField("failure"):
                 failure = response.failure
                 error_msg = "Unknown error"
