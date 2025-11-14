@@ -222,7 +222,7 @@ HUB_SENSORS: tuple[AjaxDeviceSensorDescription, ...] = (
         icon="mdi:sim",
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda device: device.attributes.get("sim_status"),
-        should_create=lambda device: "sim_status" in device.attributes,
+        should_create=lambda device: "sim_status" in device.attributes and device.attributes.get("sim_slots_used", 0) > 0,
         enabled_by_default=True,
         extra_attributes_fn=lambda device: {
             "sim_slots_total": device.attributes.get("sim_slots_total", 0),
@@ -236,7 +236,7 @@ HUB_SENSORS: tuple[AjaxDeviceSensorDescription, ...] = (
         icon="mdi:signal",
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda device: device.attributes.get("gsm_type"),
-        should_create=lambda device: "gsm_type" in device.attributes,
+        should_create=lambda device: "gsm_type" in device.attributes and device.attributes.get("sim_slots_used", 0) > 0,
         enabled_by_default=True,
     ),
     AjaxDeviceSensorDescription(
@@ -245,7 +245,7 @@ HUB_SENSORS: tuple[AjaxDeviceSensorDescription, ...] = (
         icon="mdi:access-point-network",
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda device: device.attributes.get("gsm_connection_status"),
-        should_create=lambda device: "gsm_connection_status" in device.attributes,
+        should_create=lambda device: "gsm_connection_status" in device.attributes and device.attributes.get("sim_slots_used", 0) > 0,
         enabled_by_default=True,
         extra_attributes_fn=lambda device: device.attributes.get("gsm_info", {}),
     ),

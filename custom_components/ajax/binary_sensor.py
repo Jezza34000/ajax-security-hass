@@ -58,6 +58,17 @@ BINARY_SENSORS: tuple[AjaxBinarySensorDescription, ...] = (
         enabled_by_default=True,
     ),
     AjaxBinarySensorDescription(
+        key="external_contact",
+        translation_key="external_contact",
+        device_class=BinarySensorDeviceClass.DOOR,
+        value_fn=lambda device: device.attributes.get("external_contact_opened", False),
+        should_create=lambda device: (
+            device.type in [DeviceType.DOOR_CONTACT, DeviceType.WIRE_INPUT]
+            and "external_contact_opened" in device.attributes
+        ),
+        enabled_by_default=True,
+    ),
+    AjaxBinarySensorDescription(
         key="motion",
         translation_key="motion",
         device_class=BinarySensorDeviceClass.MOTION,
@@ -180,7 +191,7 @@ BINARY_SENSORS: tuple[AjaxBinarySensorDescription, ...] = (
         device_class=BinarySensorDeviceClass.CONNECTIVITY,
         icon="mdi:signal-cellular-3",
         value_fn=lambda device: not device.attributes.get("cellular_signal_low", False),
-        should_create=lambda device: device.type == DeviceType.HUB,
+        should_create=lambda device: device.type == DeviceType.HUB and device.attributes.get("sim_slots_used", 0) > 0,
         enabled_by_default=True,
     ),
     AjaxBinarySensorDescription(
@@ -189,7 +200,7 @@ BINARY_SENSORS: tuple[AjaxBinarySensorDescription, ...] = (
         device_class=BinarySensorDeviceClass.CONNECTIVITY,
         icon="mdi:antenna",
         value_fn=lambda device: not (device.attributes.get("gsm_antenna_damaged", False) or device.attributes.get("gsm_antenna_disconnected", False)),
-        should_create=lambda device: device.type == DeviceType.HUB,
+        should_create=lambda device: device.type == DeviceType.HUB and device.attributes.get("sim_slots_used", 0) > 0,
         enabled_by_default=True,
     ),
     AjaxBinarySensorDescription(
@@ -402,6 +413,10 @@ class AjaxBinarySensor(CoordinatorEntity[AjaxDataCoordinator], BinarySensorEntit
             if room:
                 attributes["room_id"] = room.id
                 attributes["room_name"] = room.name
+
+        # Add external contact indicator
+        if self.entity_description.key == "external_contact":
+            attributes["is_external_contact"] = True
 
         # Add motion detection timestamp if available
         if (

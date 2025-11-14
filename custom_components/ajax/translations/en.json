@@ -74,6 +74,9 @@
       "window": {
         "name": "Window sensor"
       },
+      "external_contact": {
+        "name": "Door (external contact)"
+      },
       "smoke": {
         "name": "Smoke detector"
       },

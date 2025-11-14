@@ -1372,7 +1372,7 @@ class AjaxApi:
                         else:
                             attributes["externally_powered"] = bool(ext_powered)
 
-                    # WireInput/WireInputMt: external_contact_state (for EOL sensors)
+                    # WireInput/WireInputMt/DoorProtect: external_contact_state (for external sensors)
                     if hasattr(device_specific, 'external_contact_state'):
                         contact_state_raw = str(device_specific.external_contact_state)
                         _LOGGER.debug("Device %s external_contact_state (raw): %s", profile.name, contact_state_raw)
@@ -1384,21 +1384,31 @@ class AjaxApi:
                         # - CONTACT_NOT_AVAILABLE (3): not available
                         # - NO_EXTERNAL_CONTACT_STATE (0): unknown
 
+                        external_contact_opened = None
+
                         # Handle both text and numeric enum formats
                         if contact_state_raw.isdigit():
                             contact_state_num = int(contact_state_raw)
                             # Map numeric values: 2=NORMAL (closed), 1=DISRUPTED (open), 3=NOT_AVAILABLE, 0=NO_INFO
                             if contact_state_num == 2:  # CONTACT_NORMAL
-                                attributes["door_opened"] = False
+                                external_contact_opened = False
                             elif contact_state_num == 1:  # CONTACT_DISRUPTED
-                                attributes["door_opened"] = True
-                                _LOGGER.debug("Device %s door is OPEN (CONTACT_DISRUPTED)", profile.name)
-                            # For NOT_AVAILABLE (3) or NO_INFO (0), keep default (closed)
+                                external_contact_opened = True
+                                _LOGGER.debug("Device %s external contact is OPEN (CONTACT_DISRUPTED)", profile.name)
+                            # For NOT_AVAILABLE (3) or NO_INFO (0), don't set the attribute
                         elif "CONTACT_DISRUPTED" in contact_state_raw:
-                            attributes["door_opened"] = True
-                            _LOGGER.debug("Device %s door is OPEN", profile.name)
+                            external_contact_opened = True
+                            _LOGGER.debug("Device %s external contact is OPEN", profile.name)
                         elif "CONTACT_NORMAL" in contact_state_raw:
-                            attributes["door_opened"] = False
+                            external_contact_opened = False
+
+                        # Store external contact state if valid
+                        if external_contact_opened is not None:
+                            attributes["external_contact_opened"] = external_contact_opened
+
+                            # For WireInput devices without their own contact, use external contact as door state
+                            if object_type_str == "wire_input" and "door_opened" not in attributes:
+                                attributes["door_opened"] = external_contact_opened
 
                 # Add default values for always_active and armed_in_night_mode if not set
                 # (these fields only appear when True, but we want to show them as False when absent)

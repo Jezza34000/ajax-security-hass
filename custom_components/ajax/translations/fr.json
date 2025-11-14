@@ -115,6 +115,9 @@
       "window": {
         "name": "Détecteur d'ouverture de fenêtre"
       },
+      "external_contact": {
+        "name": "Porte (contact externe)"
+      },
       "smoke": {
         "name": "Détecteur de fumée"
       },
