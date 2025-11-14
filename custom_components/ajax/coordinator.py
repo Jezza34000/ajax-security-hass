@@ -181,6 +181,16 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                 self._device_streaming_tasks[space_id] = task
                 _LOGGER.info("Started device status streaming for space %s", space_id)
 
+            # Start wire_input polling if not already running and if space has wire_input devices
+            space = self.account.spaces.get(space_id)
+            if space:
+                has_wire_inputs = any(device.type == DeviceType.WIRE_INPUT for device in space.devices.values())
+                if has_wire_inputs:
+                    if space_id not in self._wire_input_polling_tasks or self._wire_input_polling_tasks[space_id].done():
+                        task = asyncio.create_task(self._async_poll_wire_inputs(space_id))
+                        self._wire_input_polling_tasks[space_id] = task
+                        _LOGGER.info("Started wire_input polling for space %s", space_id)
+
             # Device-specific stream removed - was causing errors
 
     async def _async_stream_space(self, space_id: str) -> None:
@@ -514,6 +524,12 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                         if device_data.get("id") == device_id:
                             device_found = True
                             door_opened = device_data.get("attributes", {}).get("door_opened", False)
+                            _LOGGER.debug(
+                                "Fast polling device %s: door_opened=%s, attributes=%s",
+                                device_id,
+                                door_opened,
+                                device_data.get("attributes", {})
+                            )
 
                             # Update the device in our account
                             if device_id in space.devices:
@@ -522,9 +538,12 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
 
                             # If door is now closed, stop polling
                             if not door_opened:
-                                _LOGGER.info("Door sensor %s closed, stopping fast polling", device_id)
+                                _LOGGER.info("Door sensor %s closed (detected via fast polling), stopping", device_id)
                                 # Notify HA of the change
                                 self.async_set_updated_data(self.account)
+                                # Remove from fast poll tasks
+                                if device_id in self._fast_poll_tasks:
+                                    del self._fast_poll_tasks[device_id]
                                 break
 
                     if not device_found:
@@ -1770,10 +1789,17 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
 
                 # Start fast polling when door opens to quickly detect closure
                 device_id = notification.device_id
+                # Clean up any finished task first
+                if device_id in self._fast_poll_tasks and self._fast_poll_tasks[device_id].done():
+                    _LOGGER.debug("Removing finished fast poll task for device %s", device_id)
+                    del self._fast_poll_tasks[device_id]
+
                 if device_id not in self._fast_poll_tasks:
                     _LOGGER.info("Door opened, starting fast polling for device %s", device_id)
                     task = asyncio.create_task(self._async_fast_poll_door_sensor(space.id, device_id))
                     self._fast_poll_tasks[device_id] = task
+                else:
+                    _LOGGER.debug("Fast polling already running for device %s", device_id)
 
             elif "closed" in event_type or "close" in event_type or "fermé" in event_type:
                 device.attributes["door_opened"] = False
