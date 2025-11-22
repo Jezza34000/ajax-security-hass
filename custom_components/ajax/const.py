@@ -24,17 +24,6 @@ NOTIFICATION_FILTER_ALARMS_ONLY = "alarms_only"
 NOTIFICATION_FILTER_SECURITY_EVENTS = "security_events"
 NOTIFICATION_FILTER_ALL = "all"
 
-# Default values - Simulate Google Pixel 9 with Android 15
-DEFAULT_DEVICE_MODEL = "Google Pixel 9"
-DEFAULT_VERSION = "3.35"
-DEFAULT_OS = "Android 15"
-DEFAULT_APP_LABEL = "Ajax"
-DEFAULT_DEVICE_TYPE = "MOBILE"
-
-# gRPC API endpoints (legacy)
-API_BASE_URL = "mobile-gw.prod.ajax.systems"
-API_PORT = 443
-
 # REST API endpoints (official)
 AJAX_REST_API_BASE_URL = "https://api.ajax.systems/api"
 AJAX_REST_API_TIMEOUT = 30  # seconds
@@ -59,15 +48,6 @@ SECURITY_STATE_ARMED = "armed"
 SECURITY_STATE_DISARMED = "disarmed"
 SECURITY_STATE_NIGHT_MODE = "night_mode"
 SECURITY_STATE_PARTIALLY_ARMED = "partially_armed"
-
-# gRPC service paths
-GRPC_LOGIN_SERVICE = "systems.ajax.api.ecosystem.v3.mobilegwsvc.service.login_by_password.LoginByPasswordService"
-GRPC_GET_ACCOUNT_SERVICE = "systems.ajax.api.ecosystem.v3.mobilegwsvc.service.get_account.GetAccountService"
-GRPC_SPACE_SERVICE = "systems.ajax.api.mobile.v2.space.SpaceService"
-GRPC_SECURITY_SERVICE = "systems.ajax.api.mobile.v2.space.security.SpaceSecurityService"
-
-# Platforms - will be implemented in future versions
-# PLATFORMS = ["alarm_control_panel", "binary_sensor", "sensor"]
 
 
 # ==============================================================================

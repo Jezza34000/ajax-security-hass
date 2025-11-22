@@ -3,29 +3,36 @@
     "step": {
       "user": {
         "title": "Connect to Ajax",
-        "description": "Connect your Ajax security system to Home Assistant",
+        "description": "Enter your Ajax API credentials. You can request them from Ajax Systems at https://www.ajax.systems/api/",
         "data": {
-          "email": "Email address",
-          "password": "Password"
+          "integration_id": "Integration ID",
+          "api_key": "API Key",
+          "aws_access_key": "AWS Access Key (optional)",
+          "aws_secret_key": "AWS Secret Key (optional)",
+          "events_queue": "SQS Queue Name (optional)",
+          "aws_region": "AWS Region"
         }
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect to Ajax server. Check your internet connection.",
-      "invalid_auth": "Invalid credentials. Check your email and password.",
+      "cannot_connect": "Failed to connect to Ajax API. Check your internet connection.",
+      "invalid_auth": "Invalid API credentials. Check your Integration ID and API Key.",
       "unknown": "Unexpected error. Check the logs for more details."
     },
     "abort": {
-      "already_configured": "This Ajax account is already configured."
+      "already_configured": "This Ajax integration is already configured."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Ajax Options",
-        "description": "Configure your Ajax integration options",
+        "title": "Ajax AWS SQS Options",
+        "description": "Update AWS SQS credentials for real-time events",
         "data": {
-          "update_interval": "Update interval (seconds)"
+          "aws_access_key": "AWS Access Key",
+          "aws_secret_key": "AWS Secret Key",
+          "events_queue": "SQS Queue Name",
+          "aws_region": "AWS Region"
         }
       }
     }

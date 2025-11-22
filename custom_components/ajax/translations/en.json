@@ -3,62 +3,50 @@
     "step": {
       "user": {
         "title": "Connect to Ajax",
-        "description": "Connect your Ajax security system to Home Assistant",
+        "description": "Enter your Ajax API credentials. You can request them from Ajax Systems at https://www.ajax.systems/api/",
         "data": {
-          "email": "Email address",
-          "password": "Password",
-          "persistent_notification": "Show persistent notifications",
-          "notification_filter": "Notification filter"
+          "integration_id": "Integration ID",
+          "api_key": "API Key",
+          "aws_access_key": "AWS Access Key (optional)",
+          "aws_secret_key": "AWS Secret Key (optional)",
+          "events_queue": "SQS Queue Name (optional)",
+          "aws_region": "AWS Region"
         },
         "data_description": {
-          "persistent_notification": "Create persistent notifications in Home Assistant",
-          "notification_filter": "Choose which type of notifications to display"
-        }
-      },
-      "select_spaces": {
-        "title": "Select Spaces",
-        "description": "Select which Ajax spaces (hubs/systems) to add to Home Assistant",
-        "data": {
-          "spaces": "Spaces to add"
-        },
-        "data_description": {
-          "spaces": "Choose one or more spaces to monitor in Home Assistant"
-        }
-      },
-      "totp": {
-        "title": "Two-Factor Authentication",
-        "description": "Enter the 6-digit verification code from your authenticator app for {email}",
-        "data": {
-          "totp_code": "Verification code"
-        },
-        "data_description": {
-          "totp_code": "6-digit code from your authenticator app"
+          "integration_id": "Your Integration ID provided by Ajax Systems",
+          "api_key": "Your API Key provided by Ajax Systems",
+          "aws_access_key": "AWS Access Key for real-time events via SQS (optional)",
+          "aws_secret_key": "AWS Secret Access Key for SQS (optional)",
+          "events_queue": "SQS Queue Name (e.g., ajax-events-XXXXXXXX-prod.fifo)",
+          "aws_region": "AWS Region (default: eu-central-1)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect to Ajax server. Check your internet connection.",
-      "invalid_auth": "Invalid credentials. Check your email and password.",
-      "invalid_totp": "Invalid verification code. Please try again.",
-      "unknown": "Unexpected error. Check the logs for more details.",
-      "no_spaces_selected": "Please select at least one space."
+      "cannot_connect": "Failed to connect to Ajax API. Check your internet connection.",
+      "invalid_auth": "Invalid API credentials. Check your Integration ID and API Key.",
+      "unknown": "Unexpected error. Check the logs for more details."
     },
     "abort": {
-      "already_configured": "This Ajax account is already configured."
+      "already_configured": "This Ajax integration is already configured."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Ajax Options",
-        "description": "Configure your Ajax integration options",
+        "title": "Ajax AWS SQS Options",
+        "description": "Update AWS SQS credentials for real-time events",
         "data": {
-          "persistent_notification": "Show persistent notifications",
-          "notification_filter": "Notification filter",
-          "spaces": "Spaces to monitor"
+          "aws_access_key": "AWS Access Key",
+          "aws_secret_key": "AWS Secret Key",
+          "events_queue": "SQS Queue Name",
+          "aws_region": "AWS Region"
         },
         "data_description": {
-          "spaces": "Select which spaces (hubs/systems) to monitor. Changing this will reload the integration."
+          "aws_access_key": "AWS Access Key for SQS",
+          "aws_secret_key": "AWS Secret Access Key for SQS",
+          "events_queue": "SQS Queue Name",
+          "aws_region": "AWS Region"
         }
       }
     }

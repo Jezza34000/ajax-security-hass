@@ -3,62 +3,50 @@
     "step": {
       "user": {
         "title": "Connexion à Ajax",
-        "description": "Connectez votre système de sécurité Ajax à Home Assistant",
+        "description": "Entrez vos identifiants API Ajax. Vous pouvez les demander à Ajax Systems sur https://www.ajax.systems/api/",
         "data": {
-          "email": "Adresse e-mail",
-          "password": "Mot de passe",
-          "persistent_notification": "Afficher les notifications persistantes",
-          "notification_filter": "Filtre de notifications"
+          "integration_id": "ID d'intégration",
+          "api_key": "Clé API",
+          "aws_access_key": "Clé d'accès AWS (optionnel)",
+          "aws_secret_key": "Clé secrète AWS (optionnel)",
+          "events_queue": "Nom de la file SQS (optionnel)",
+          "aws_region": "Région AWS"
         },
         "data_description": {
-          "persistent_notification": "Créer des notifications persistantes dans Home Assistant",
-          "notification_filter": "Choisir quel type de notifications afficher"
-        }
-      },
-      "select_spaces": {
-        "title": "Sélectionner les espaces",
-        "description": "Sélectionnez les espaces Ajax (hubs/systèmes) à ajouter à Home Assistant",
-        "data": {
-          "spaces": "Espaces à ajouter"
-        },
-        "data_description": {
-          "spaces": "Choisissez un ou plusieurs espaces à surveiller dans Home Assistant"
-        }
-      },
-      "totp": {
-        "title": "Authentification à deux facteurs",
-        "description": "Entrez le code de vérification à 6 chiffres de votre application d'authentification pour {email}",
-        "data": {
-          "totp_code": "Code de vérification"
-        },
-        "data_description": {
-          "totp_code": "Code à 6 chiffres de votre application d'authentification"
+          "integration_id": "Votre ID d'intégration fourni par Ajax Systems",
+          "api_key": "Votre clé API fournie par Ajax Systems",
+          "aws_access_key": "Clé d'accès AWS pour les événements temps réel via SQS (optionnel)",
+          "aws_secret_key": "Clé d'accès secrète AWS pour SQS (optionnel)",
+          "events_queue": "Nom de la file SQS (ex: ajax-events-XXXXXXXX-prod.fifo)",
+          "aws_region": "Région AWS (par défaut: eu-central-1)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Échec de la connexion au serveur Ajax. Vérifiez votre connexion Internet.",
-      "invalid_auth": "Identifiants incorrects. Vérifiez votre adresse e-mail et votre mot de passe.",
-      "invalid_totp": "Code de vérification invalide. Veuillez réessayer.",
-      "unknown": "Erreur inattendue. Consultez les journaux pour plus de détails.",
-      "no_spaces_selected": "Veuillez sélectionner au moins un espace."
+      "cannot_connect": "Échec de la connexion à l'API Ajax. Vérifiez votre connexion Internet.",
+      "invalid_auth": "Identifiants API invalides. Vérifiez votre ID d'intégration et votre clé API.",
+      "unknown": "Erreur inattendue. Consultez les journaux pour plus de détails."
     },
     "abort": {
-      "already_configured": "Ce compte Ajax est déjà configuré."
+      "already_configured": "Cette intégration Ajax est déjà configurée."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Options Ajax",
-        "description": "Configurez les options de votre intégration Ajax",
+        "title": "Options AWS SQS Ajax",
+        "description": "Mettre à jour les identifiants AWS SQS pour les événements temps réel",
         "data": {
-          "persistent_notification": "Afficher les notifications persistantes",
-          "notification_filter": "Filtre de notifications",
-          "spaces": "Espaces à surveiller"
+          "aws_access_key": "Clé d'accès AWS",
+          "aws_secret_key": "Clé secrète AWS",
+          "events_queue": "Nom de la file SQS",
+          "aws_region": "Région AWS"
         },
         "data_description": {
-          "spaces": "Sélectionnez les espaces (hubs/systèmes) à surveiller. Modifier ceci rechargera l'intégration."
+          "aws_access_key": "Clé d'accès AWS pour SQS",
+          "aws_secret_key": "Clé d'accès secrète AWS pour SQS",
+          "events_queue": "Nom de la file SQS",
+          "aws_region": "Région AWS"
         }
       }
     }
