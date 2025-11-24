@@ -160,6 +160,41 @@ class AjaxBinarySensor(CoordinatorEntity[AjaxDataCoordinator], BinarySensorEntit
         """Handle updated data from the coordinator."""
         self.async_write_ha_state()
 
+    def _get_device_model_name(self, device_type_value: str) -> str:
+        """Get translated device model name.
+
+        Args:
+            device_type_value: Device type enum value (e.g., "door_contact")
+
+        Returns:
+            Translated model name in French
+        """
+        translations = {
+            "motion_detector": "Détecteur de mouvement",
+            "door_contact": "Capteur de porte",
+            "glass_break": "Détecteur bris de glace",
+            "combi_protect": "Détecteur combiné",
+            "smoke_detector": "Détecteur de fumée",
+            "flood_detector": "Détecteur d'inondation",
+            "temperature_sensor": "Capteur de température",
+            "keypad": "Clavier",
+            "remote_control": "Télécommande",
+            "button": "Bouton",
+            "siren": "Sirène",
+            "transmitter": "Transmetteur",
+            "repeater": "Répéteur",
+            "wire_input": "Module d'entrée filaire",
+            "line_splitter": "Répartiteur de ligne",
+            "socket": "Prise connectée",
+            "relay": "Relais",
+            "thermostat": "Thermostat",
+            "life_quality": "Capteur qualité de l'air",
+            "camera": "Caméra",
+            "hub": "Hub",
+            "unknown": "Appareil inconnu",
+        }
+        return translations.get(device_type_value, device_type_value.replace("_", " ").title())
+
     @property
     def device_info(self) -> dict[str, Any]:
         """Return device information."""
@@ -181,7 +216,7 @@ class AjaxBinarySensor(CoordinatorEntity[AjaxDataCoordinator], BinarySensorEntit
             "identifiers": {(DOMAIN, self._device_id)},
             "name": f"Ajax {device_display_name}",
             "manufacturer": "Ajax Systems",
-            "model": device.type.value.replace("_", " ").title(),
+            "model": self._get_device_model_name(device.type.value),
             "via_device": (DOMAIN, self._space_id),
             "sw_version": device.firmware_version,
             "hw_version": device.hardware_version,
