@@ -192,6 +192,15 @@
       "hardware_version": {
         "name": "Version matérielle"
       },
+      "connection_type": {
+        "name": "Type de connexion"
+      },
+      "operating_mode": {
+        "name": "Mode de fonctionnement"
+      },
+      "battery_state": {
+        "name": "État de la batterie"
+      },
       "sim_status": {
         "name": "État des cartes SIM",
         "state_attributes": {
@@ -365,6 +374,12 @@
       },
       "armed_in_night_mode": {
         "name": "Armé en mode nuit"
+      },
+      "tilt": {
+        "name": "Capteur d'inclinaison"
+      },
+      "shock": {
+        "name": "Capteur de choc"
       },
       "problem": {
         "name": "Problème détecté",

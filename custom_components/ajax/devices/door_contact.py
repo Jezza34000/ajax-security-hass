@@ -76,6 +76,43 @@ class DoorContactHandler(AjaxDeviceHandler):
             }
         )
 
+        # Tamper / Couvercle
+        sensors.append(
+            {
+                "key": "tamper",
+                "translation_key": "tamper",
+                "device_class": BinarySensorDeviceClass.TAMPER,
+                "value_fn": lambda: self.device.attributes.get("tampered", False),
+                "enabled_by_default": True,
+            }
+        )
+
+        # Tilt sensor / Capteur d'inclinaison (DoorProtect Plus)
+        if "tilt_detected" in self.device.attributes or "tilt" in self.device.attributes:
+            sensors.append(
+                {
+                    "key": "tilt",
+                    "translation_key": "tilt",
+                    "device_class": BinarySensorDeviceClass.MOVING,
+                    "icon": "mdi:angle-acute",
+                    "value_fn": lambda: self.device.attributes.get("tilt_detected", self.device.attributes.get("tilt", False)),
+                    "enabled_by_default": True,
+                }
+            )
+
+        # Shock sensor / Capteur de choc (DoorProtect Plus)
+        if "shock_detected" in self.device.attributes or "shock" in self.device.attributes:
+            sensors.append(
+                {
+                    "key": "shock",
+                    "translation_key": "shock",
+                    "device_class": BinarySensorDeviceClass.VIBRATION,
+                    "icon": "mdi:vibrate",
+                    "value_fn": lambda: self.device.attributes.get("shock_detected", self.device.attributes.get("shock", False)),
+                    "enabled_by_default": True,
+                }
+            )
+
         return sensors
 
     def get_sensors(self) -> list[dict]:
@@ -144,6 +181,42 @@ class DoorContactHandler(AjaxDeviceHandler):
                     "translation_key": "hardware_version",
                     "icon": "mdi:chip",
                     "value_fn": lambda: self.device.hardware_version,
+                    "enabled_by_default": True,
+                }
+            )
+
+        # Connection type / Connexion via Jeweller
+        if "connection_type" in self.device.attributes:
+            sensors.append(
+                {
+                    "key": "connection_type",
+                    "translation_key": "connection_type",
+                    "icon": "mdi:wifi",
+                    "value_fn": lambda: self.device.attributes.get("connection_type"),
+                    "enabled_by_default": True,
+                }
+            )
+
+        # Operating mode / Mode de fonctionnement
+        if "operating_mode" in self.device.attributes:
+            sensors.append(
+                {
+                    "key": "operating_mode",
+                    "translation_key": "operating_mode",
+                    "icon": "mdi:cog",
+                    "value_fn": lambda: self.device.attributes.get("operating_mode"),
+                    "enabled_by_default": True,
+                }
+            )
+
+        # Battery state / État de la batterie (normal/faible/critique)
+        if self.device.battery_state is not None:
+            sensors.append(
+                {
+                    "key": "battery_state",
+                    "translation_key": "battery_state",
+                    "icon": "mdi:battery-heart-variant",
+                    "value_fn": lambda: self.device.battery_state,
                     "enabled_by_default": True,
                 }
             )
