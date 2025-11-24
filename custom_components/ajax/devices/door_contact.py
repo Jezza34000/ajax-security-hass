@@ -29,19 +29,20 @@ class DoorContactHandler(AjaxDeviceHandler):
         """Return binary sensor entities for door contacts."""
         sensors = []
 
-        # Main door sensor
-        if "door_opened" in self.device.attributes:
-            sensors.append(
-                {
-                    "key": "door",
-                    "translation_key": "door",
-                    "device_class": BinarySensorDeviceClass.DOOR,
-                    "value_fn": lambda: self.device.attributes.get("door_opened", False),
-                    "enabled_by_default": True,
-                }
-            )
+        # Main door sensor - always create it even if attribute doesn't exist yet
+        # The attribute will be populated by SQS notifications
+        sensors.append(
+            {
+                "key": "door",
+                "translation_key": "door",
+                "device_class": BinarySensorDeviceClass.DOOR,
+                "value_fn": lambda: self.device.attributes.get("door_opened", False),
+                "enabled_by_default": True,
+            }
+        )
 
         # External contact (for connecting wired sensors)
+        # Only create if the device has this capability
         if "external_contact_opened" in self.device.attributes:
             sensors.append(
                 {
