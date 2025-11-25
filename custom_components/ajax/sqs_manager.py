@@ -197,57 +197,40 @@ class SQSManager:
         Args:
             event: Parsed arming event
         """
-        from .models import AjaxNotification, NotificationType, SecurityState
+        from .models import AjaxNotification, NotificationType
 
         action = event["action"]
         hub_id = event.get("hub_id")
-        user_name = event.get("user_name", "")
+        user_name = event.get("user_name", "") or event.get("source_name", "")
 
-        _LOGGER.info("Hub arming state changed: %s (hub: %s)", action, hub_id)
+        _LOGGER.info("Hub arming event received: %s (hub: %s, user: %s)", action, hub_id, user_name)
 
-        # Update space security state directly from SQS event
-        if hub_id and self.coordinator.account:
-            space = self.coordinator.account.spaces.get(hub_id)
-            if space:
-                old_state = space.security_state
+        # NOTE: We don't update security_state here anymore because:
+        # 1. SQS events can arrive out of order or delayed
+        # 2. The REST polling (triggered by async_request_refresh) already updated the correct state
+        # 3. SQS events were overwriting the correct state with stale data
+        # The REST API is the source of truth for security state.
 
-                # Map SQS action to SecurityState
-                action_lower = action.lower()
-                if "disarm" in action_lower:
-                    space.security_state = SecurityState.DISARMED
-                elif "night" in action_lower:
-                    space.security_state = SecurityState.NIGHT_MODE
-                elif "arm" in action_lower:
-                    space.security_state = SecurityState.ARMED
+        # Create notification for arming event (respects user filter)
+        if hub_id:
+            action_display = self._format_arming_action(action)
+            message = f"🔐 {action_display}"
+            if user_name:
+                message += f"\nPar: {user_name}"
 
-                _LOGGER.info(
-                    "Updated security state from SQS: %s -> %s",
-                    old_state,
-                    space.security_state,
-                )
+            notification = AjaxNotification(
+                id=event.get("event_id", ""),
+                space_id=hub_id,
+                type=NotificationType.SECURITY_EVENT,
+                title="Ajax Security",
+                message=message,
+                timestamp=event.get("event_time"),
+                user_name=user_name,
+            )
 
-                # Notify Home Assistant of the state change immediately
-                self.coordinator.async_set_updated_data(self.coordinator.account)
-
-                # Create notification for arming event (respects user filter)
-                action_display = self._format_arming_action(action)
-                message = f"🔐 {action_display}"
-                if user_name:
-                    message += f"\nPar: {user_name}"
-
-                notification = AjaxNotification(
-                    id=event.get("event_id", ""),
-                    space_id=hub_id,
-                    type=NotificationType.SECURITY_EVENT,
-                    title="Ajax Security",
-                    message=message,
-                    timestamp=event.get("event_time"),
-                    user_name=user_name,
-                )
-
-                await self.coordinator._create_persistent_notification(
-                    notification, message, NotificationType.SECURITY_EVENT
-                )
+            await self.coordinator._create_persistent_notification(
+                notification, message, NotificationType.SECURITY_EVENT
+            )
 
     async def _handle_malfunction_event(self, event: dict[str, Any]) -> None:
         """Handle malfunction event.
