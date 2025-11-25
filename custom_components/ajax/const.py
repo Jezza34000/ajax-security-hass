@@ -172,11 +172,16 @@ EVENT_TYPE_MAPPING = {
 
     # Arming/Disarming
     "armed": {"en": "System armed", "fr": "Système armé"},
+    "arm": {"en": "System armed", "fr": "Système armé"},
     "disarmed": {"en": "System disarmed", "fr": "Système désarmé"},
+    "disarm": {"en": "System disarmed", "fr": "Système désarmé"},
     "night_mode_on": {"en": "Night mode activated", "fr": "Mode nuit activé"},
     "night_mode_off": {"en": "Night mode deactivated", "fr": "Mode nuit désactivé"},
+    "nightmodeon": {"en": "Night mode activated", "fr": "Mode nuit activé"},
+    "nightmodeoff": {"en": "Night mode deactivated", "fr": "Mode nuit désactivé"},
     "armed_with_malfunctions": {"en": "Armed with problems", "fr": "Armé avec des problèmes"},
     "night_mode_with_malfunctions": {"en": "Night mode with problems", "fr": "Mode nuit avec des problèmes"},
+    "partiallyarmed": {"en": "Partially armed", "fr": "Partiellement armé"},
 
     # Device status
     "device_online": {"en": "Device connected", "fr": "Appareil connecté"},

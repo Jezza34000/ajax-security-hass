@@ -84,35 +84,44 @@ def format_event_text(event: dict) -> str:
     """Format an SQS event into readable French text."""
     event_type = event.get("event_type", "")
     action = event.get("action", "")
+    source_name = event.get("source_name", "")
     device_name = event.get("device_name")
-    user_name = event.get("user_name")
+    user_name = event.get("user_name") or source_name
     room_name = event.get("room_name")
 
-    event_messages = {
-        ("arm", "ARM"): "Armement",
-        ("arm", "DISARM"): "Désarmement",
-        ("arm", "NIGHT_MODE"): "Mode nuit activé",
-        ("arm", "PARTIAL"): "Armement partiel",
-        ("alarm", "MOTION"): "Mouvement détecté",
-        ("alarm", "OPEN"): "Ouverture détectée",
-        ("alarm", "TAMPER"): "Sabotage détecté",
-        ("alarm", "GLASS_BREAK"): "Bris de glace détecté",
-        ("alarm", "SMOKE"): "Fumée détectée",
-        ("alarm", "FLOOD"): "Inondation détectée",
-        ("alarm", "PANIC"): "Alarme panique",
-        ("device", "ONLINE"): "Appareil en ligne",
-        ("device", "OFFLINE"): "Appareil hors ligne",
-        ("device", "LOW_BATTERY"): "Batterie faible",
-        ("device", "TAMPER_OPEN"): "Couvercle ouvert",
-        ("device", "TAMPER_CLOSE"): "Couvercle fermé",
-        ("hub", "POWER_ON"): "Alimentation connectée",
-        ("hub", "POWER_OFF"): "Alimentation déconnectée",
-        ("hub", "TAMPER_OPEN"): "Couvercle Hub ouvert",
-        ("hub", "TAMPER_CLOSE"): "Couvercle Hub fermé",
+    # Map actions directly to French messages
+    action_messages = {
+        # Arming/Disarming (from SQS events)
+        "arm": "Armement",
+        "armed": "Armement",
+        "disarm": "Désarmement",
+        "disarmed": "Désarmement",
+        "nightmodeon": "Mode nuit activé",
+        "nightmodeoff": "Mode nuit désactivé",
+        "night_mode_on": "Mode nuit activé",
+        "night_mode_off": "Mode nuit désactivé",
+        "partiallyarmed": "Armement partiel",
+        # Alarms
+        "motion_detected": "Mouvement détecté",
+        "door_opened": "Porte ouverte",
+        "door_closed": "Porte fermée",
+        "glass_break_detected": "Bris de glace détecté",
+        "smoke_detected": "Fumée détectée",
+        "leak_detected": "Fuite d'eau détectée",
+        "tamper": "Sabotage détecté",
+        "tampered": "Sabotage détecté",
+        "panic": "Alarme panique",
+        # Device status
+        "online": "Appareil en ligne",
+        "offline": "Appareil hors ligne",
+        "low_battery": "Batterie faible",
+        "external_power_on": "Alimentation connectée",
+        "external_power_off": "Alimentation déconnectée",
     }
 
-    key = (event_type.lower(), action.upper()) if event_type and action else None
-    message = event_messages.get(key, action or event_type or "Événement")
+    # Get message from action (case-insensitive)
+    action_lower = action.lower() if action else ""
+    message = action_messages.get(action_lower, action or event_type or "Événement")
 
     parts = [message]
     if device_name:
