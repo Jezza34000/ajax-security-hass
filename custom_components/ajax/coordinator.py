@@ -27,7 +27,12 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import AjaxRestApi, AjaxRestApiError, AjaxRestAuthError
 from .const import (
+    CONF_NOTIFICATION_FILTER,
+    CONF_PERSISTENT_NOTIFICATION,
     DOMAIN,
+    NOTIFICATION_FILTER_ALARMS_ONLY,
+    NOTIFICATION_FILTER_ALL,
+    NOTIFICATION_FILTER_NONE,
     UPDATE_INTERVAL,
     UPDATE_INTERVAL_ARMED,
 )
@@ -1101,6 +1106,35 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
     ) -> None:
         """Create a persistent notification in HA for SQS events."""
         from homeassistant.components.persistent_notification import async_create
+
+        # Check notification filter settings
+        options = self.config_entry.options if self.config_entry else {}
+
+        # Check if persistent notifications are enabled
+        if not options.get(CONF_PERSISTENT_NOTIFICATION, True):
+            return
+
+        notification_filter = options.get(
+            CONF_NOTIFICATION_FILTER, NOTIFICATION_FILTER_ALL
+        )
+
+        # Apply filter
+        if notification_filter == NOTIFICATION_FILTER_NONE:
+            return
+
+        # Arm/disarm are security events, not alarms
+        is_arming_event = action in (
+            "armed",
+            "disarmed",
+            "nightmodeon",
+            "partiallyarmed",
+        )
+
+        if notification_filter == NOTIFICATION_FILTER_ALARMS_ONLY and is_arming_event:
+            # "Alarms only" should NOT show arm/disarm events
+            return
+
+        # NOTIFICATION_FILTER_SECURITY_EVENTS and NOTIFICATION_FILTER_ALL show everything
 
         # Map action to French message
         action_messages = {
