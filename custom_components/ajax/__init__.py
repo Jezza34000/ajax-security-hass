@@ -375,6 +375,7 @@ async def _async_setup_services(
             handle_device_debug,
             schema=vol.Schema(
                 {
+                    vol.Optional("device"): cv.string,
                     vol.Optional("device_id"): cv.string,
                     vol.Optional("device_name"): cv.string,
                 }
