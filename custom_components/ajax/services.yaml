@@ -14,10 +14,6 @@ force_arm_night:
       integration: ajax
       domain: alarm_control_panel
 
-generate_device_info:
-  name: Generate Device Info
-  description: Generate a JSON file with anonymized device information for debugging and support.
-
 get_raw_device:
   name: Get Raw Device
   description: Get raw API JSON data for a device. Saves the complete API response to ajax_raw_device.json.

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
@@ -39,7 +39,6 @@ _LOGGER = logging.getLogger(__name__)
 # Service names
 SERVICE_FORCE_ARM = "force_arm"
 SERVICE_FORCE_ARM_NIGHT = "force_arm_night"
-SERVICE_GENERATE_DEVICE_INFO = "generate_device_info"
 SERVICE_GET_RAW_DEVICE = "get_raw_device"
 
 PLATFORMS: list[Platform] = [
@@ -200,60 +199,6 @@ async def _async_setup_services(
                         "Failed to force arm night mode hub %s: %s", hub_id, err
                     )
 
-    async def handle_generate_device_info(call: ServiceCall) -> None:
-        """Handle generate device info service call."""
-        _LOGGER.info("Generating device info report")
-
-        device_info: dict[str, Any] = {
-            "integration_version": "1.0.0",
-            "device_types": {},
-            "device_count": 0,
-        }
-
-        if coordinator.account:
-            for _space_id, space in coordinator.account.spaces.items():
-                for _device_id, device in space.devices.items():
-                    device_type = device.raw_type
-                    if device_type not in device_info["device_types"]:
-                        device_info["device_types"][device_type] = {
-                            "count": 0,
-                            "attributes": set(),
-                            "firmware_versions": set(),
-                        }
-
-                    type_info = device_info["device_types"][device_type]
-                    type_info["count"] += 1
-                    type_info["attributes"].update(device.attributes.keys())
-
-                    if "firmware_version" in device.attributes:
-                        type_info["firmware_versions"].add(
-                            device.attributes["firmware_version"]
-                        )
-
-                    device_info["device_count"] += 1
-
-        # Convert sets to lists for JSON serialization
-        for type_info in device_info["device_types"].values():
-            type_info["attributes"] = sorted(type_info["attributes"])
-            type_info["firmware_versions"] = sorted(type_info["firmware_versions"])
-
-        # Write to file
-        output_path = Path(hass.config.path("ajax_device_info.json"))
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(device_info, f, indent=2, default=str)
-
-        _LOGGER.info("Device info written to %s", output_path)
-
-        # Create persistent notification
-        from homeassistant.components.persistent_notification import async_create
-
-        async_create(
-            hass,
-            f"Device info report generated: {output_path}",
-            title="Ajax Device Info",
-            notification_id="ajax_device_info",
-        )
-
     async def handle_get_raw_device(call: ServiceCall) -> None:
         """Handle get raw device service call - get raw API data for a device."""
         from homeassistant.helpers import device_registry as dr
@@ -364,13 +309,6 @@ async def _async_setup_services(
             SERVICE_FORCE_ARM_NIGHT,
             handle_force_arm_night,
             schema=vol.Schema({vol.Optional("entity_id"): cv.entity_ids}),
-        )
-
-    if not hass.services.has_service(DOMAIN, SERVICE_GENERATE_DEVICE_INFO):
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_GENERATE_DEVICE_INFO,
-            handle_generate_device_info,
         )
 
     if not hass.services.has_service(DOMAIN, SERVICE_GET_RAW_DEVICE):
