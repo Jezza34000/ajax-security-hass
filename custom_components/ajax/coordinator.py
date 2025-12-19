@@ -475,8 +475,16 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                         for room in rooms_data
                         if room.get("id")
                     }
+                    _LOGGER.info(
+                        "Loaded %d rooms for hub %s: %s",
+                        len(rooms_map),
+                        hub_id,
+                        rooms_map,
+                    )
                 except Exception as room_err:
-                    _LOGGER.debug("Could not get rooms: %s", room_err)
+                    _LOGGER.warning(
+                        "Could not get rooms for hub %s: %s", hub_id, room_err
+                    )
                     rooms_map = {}
                 # Try to get hub name from multiple possible fields
                 hub_name = (
@@ -621,6 +629,12 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             room_id = device_data.get("roomId", device_data.get("room_id"))
             rooms_map = getattr(space, "_rooms_map", {})
             room_name = rooms_map.get(room_id) if room_id else None
+            _LOGGER.debug(
+                "Device %s: roomId=%s, room_name=%s",
+                device_data.get("deviceName", device_id),
+                room_id,
+                room_name,
+            )
 
             # Create or update device
             if device_id not in space.devices:

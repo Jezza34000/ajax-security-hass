@@ -704,7 +704,7 @@ class AjaxDeviceSensor(CoordinatorEntity[AjaxDataCoordinator], SensorEntity):
             f"{device.room_name} - {device.name}" if device.room_name else device.name
         )
 
-        return {
+        info = {
             "identifiers": {(DOMAIN, self._device_id)},
             "name": f"Ajax {device_display_name}",
             "manufacturer": "Ajax Systems",
@@ -713,6 +713,10 @@ class AjaxDeviceSensor(CoordinatorEntity[AjaxDataCoordinator], SensorEntity):
             "sw_version": device.firmware_version,
             "hw_version": device.hardware_version,
         }
+        # Auto-assign device to HA Area based on Ajax room
+        if device.room_name:
+            info["suggested_area"] = device.room_name
+        return info
 
     def _get_device(self) -> AjaxDevice | None:
         """Get the device from coordinator data."""

@@ -161,6 +161,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Register services
     await _async_setup_services(hass, coordinator)
 
+    # Create HA Areas from Ajax rooms and assign devices
+    await _async_setup_areas(hass, coordinator)
+
     return True
 
 
@@ -294,6 +297,56 @@ async def _async_setup_services(
             DOMAIN,
             SERVICE_GET_RAW_DEVICES,
             handle_get_raw_devices,
+        )
+
+
+async def _async_setup_areas(
+    hass: HomeAssistant, coordinator: AjaxDataCoordinator
+) -> None:
+    """Create HA Areas from Ajax rooms and assign devices to them."""
+    from homeassistant.helpers import area_registry as ar, device_registry as dr
+
+    area_reg = ar.async_get(hass)
+    device_reg = dr.async_get(hass)
+
+    # Collect all rooms from all spaces
+    rooms_created = 0
+    devices_assigned = 0
+
+    for _space_id, space in coordinator.account.spaces.items():
+        # Get rooms map from space
+        rooms_map = getattr(space, "_rooms_map", {})
+
+        for room_id, room_name in rooms_map.items():
+            if not room_name:
+                continue
+
+            # Create area if it doesn't exist
+            area = area_reg.async_get_area_by_name(room_name)
+            if not area:
+                area = area_reg.async_create(name=room_name)
+                rooms_created += 1
+                _LOGGER.info("Created HA Area: %s", room_name)
+
+            # Assign devices in this room to the area
+            for device_id, device in space.devices.items():
+                if device.room_id == room_id:
+                    # Find the HA device by identifiers
+                    ha_device = device_reg.async_get_device(
+                        identifiers={(DOMAIN, device_id)}
+                    )
+                    if ha_device and ha_device.area_id != area.id:
+                        device_reg.async_update_device(ha_device.id, area_id=area.id)
+                        devices_assigned += 1
+                        _LOGGER.debug(
+                            "Assigned device %s to area %s", device.name, room_name
+                        )
+
+    if rooms_created > 0 or devices_assigned > 0:
+        _LOGGER.info(
+            "Areas setup: %d created, %d devices assigned",
+            rooms_created,
+            devices_assigned,
         )
 
 

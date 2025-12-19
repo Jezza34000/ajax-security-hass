@@ -269,7 +269,7 @@ class AjaxBinarySensor(CoordinatorEntity[AjaxDataCoordinator], BinarySensorEntit
             }.get(str(device.device_color), str(device.device_color))
             model_name = f"{model_name} ({color_name})"
 
-        return {
+        info = {
             "identifiers": {(DOMAIN, self._device_id)},
             "name": f"Ajax {device_display_name}",
             "manufacturer": "Ajax Systems",
@@ -278,6 +278,10 @@ class AjaxBinarySensor(CoordinatorEntity[AjaxDataCoordinator], BinarySensorEntit
             "sw_version": device.firmware_version,
             "hw_version": device.hardware_version,
         }
+        # Auto-assign device to HA Area based on Ajax room
+        if device.room_name:
+            info["suggested_area"] = device.room_name
+        return info
 
     def _get_device(self) -> AjaxDevice | None:
         """Get the device from coordinator data."""
