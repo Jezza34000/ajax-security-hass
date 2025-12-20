@@ -22,6 +22,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -494,6 +495,8 @@ async def async_setup_entry(
     coordinator: AjaxDataCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     entities: list[SensorEntity] = []
+    entity_registry = er.async_get(hass)
+    seen_unique_ids: set[str] = set()
 
     if not coordinator.account:
         _LOGGER.warning("No Ajax account found, no sensors created")
@@ -518,6 +521,29 @@ async def async_setup_entry(
                 sensors = handler.get_sensors() + handler.get_common_sensors()
 
                 for sensor_desc in sensors:
+                    unique_id = f"{device_id}_{sensor_desc['key']}"
+
+                    # Skip if we already created this entity in this setup
+                    if unique_id in seen_unique_ids:
+                        _LOGGER.debug(
+                            "Skipping duplicate unique_id %s for device %s",
+                            unique_id,
+                            device.name,
+                        )
+                        continue
+                    seen_unique_ids.add(unique_id)
+
+                    # Skip if entity already exists in registry (from another config entry)
+                    existing = entity_registry.async_get_entity_id(
+                        "sensor", DOMAIN, unique_id
+                    )
+                    if existing:
+                        _LOGGER.debug(
+                            "Entity %s already exists in registry, skipping",
+                            unique_id,
+                        )
+                        continue
+
                     entities.append(
                         AjaxDeviceSensor(
                             coordinator=coordinator,
