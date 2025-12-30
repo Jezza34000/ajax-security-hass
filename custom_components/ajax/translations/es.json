@@ -107,6 +107,7 @@
   "entity": {
     "alarm_control_panel": {
       "ajax": {
+        "name": "Ajax",
         "state": {
           "armed": "Armado",
           "disarmed": "Desarmado",
@@ -119,12 +120,14 @@
           "security_state": {
             "name": "Estado de seguridad",
             "state": {
+              "none": "Ninguno",
               "armed": "Armado",
               "disarmed": "Desarmado",
               "night_mode": "Modo nocturno",
               "partially_armed": "Armado parcial",
-              "awaiting_app_exit_timer": "Esperando salida",
-              "awaiting_second_stage_confirmation": "Esperando confirmación",
+              "arming_incomplete": "Armado incompleto",
+              "awaiting_exit_timer": "Esperando salida",
+              "awaiting_confirmation": "Esperando confirmación",
               "two_stage_arming_incomplete": "Armado en 2 etapas incompleto",
               "awaiting_vds_arming_completion": "Esperando armado VDS"
             }
@@ -387,8 +390,13 @@
         "name": "Color del dispositivo",
         "state": {
           "White": "Blanco",
-          "Black": "Negro"
+          "Black": "Negro",
+          "WHITE": "Blanco",
+          "BLACK": "Negro"
         }
+      },
+      "device_state": {
+        "name": "Estado del dispositivo"
       },
       "device_label": {
         "name": "Etiqueta del dispositivo"
@@ -670,14 +678,41 @@
         "state": {
           "on": "Activado",
           "off": "Desactivado"
-        },
-        "state_attributes": {
-          "device_type": {
-            "name": "Tipo de dispositivo"
-          },
-          "device_id": {
-            "name": "ID del dispositivo"
-          }
+        }
+      },
+      "chimes_enabled": {
+        "name": "Timbre",
+        "state": {
+          "on": "Activado",
+          "off": "Desactivado"
+        }
+      },
+      "beep_on_arm_disarm": {
+        "name": "Pitido al armar/desarmar",
+        "state": {
+          "on": "Activado",
+          "off": "Desactivado"
+        }
+      },
+      "beep_on_delay": {
+        "name": "Pitido durante retardo",
+        "state": {
+          "on": "Activado",
+          "off": "Desactivado"
+        }
+      },
+      "blink_while_armed": {
+        "name": "Parpadear mientras armado",
+        "state": {
+          "on": "Activado",
+          "off": "Desactivado"
+        }
+      },
+      "external_contact_enabled": {
+        "name": "Contacto externo",
+        "state": {
+          "on": "Activado",
+          "off": "Desactivado"
         }
       },
       "socket": {
@@ -830,9 +865,9 @@
       "shock_sensitivity": {
         "name": "Sensibilidad de golpe",
         "state": {
-          "faible": "Bajo",
+          "low": "Bajo",
           "normal": "Normal",
-          "élevé": "Alto"
+          "high": "Alto"
         }
       }
     }

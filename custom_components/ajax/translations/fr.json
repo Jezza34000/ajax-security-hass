@@ -116,6 +116,7 @@
   "entity": {
     "alarm_control_panel": {
       "ajax": {
+        "name": "Ajax",
         "state": {
           "armed": "Armé",
           "disarmed": "Désarmé",
@@ -128,12 +129,14 @@
           "security_state": {
             "name": "État de sécurité",
             "state": {
+              "none": "Aucun",
               "armed": "Armé",
               "disarmed": "Désarmé",
               "night_mode": "Mode nuit",
               "partially_armed": "Armement partiel",
-              "awaiting_app_exit_timer": "En attente de la sortie",
-              "awaiting_second_stage_confirmation": "En attente de confirmation",
+              "arming_incomplete": "Armement incomplet",
+              "awaiting_exit_timer": "En attente de la sortie",
+              "awaiting_confirmation": "En attente de confirmation",
               "two_stage_arming_incomplete": "Armement en 2 étapes incomplet",
               "awaiting_vds_arming_completion": "En attente de l'armement VDS"
             }
@@ -160,10 +163,10 @@
         "name": "Détecteur de mouvement"
       },
       "door": {
-        "name": "Détecteur d'ouverture de porte"
+        "name": "Capteur de porte"
       },
       "window": {
-        "name": "Détecteur d'ouverture de fenêtre"
+        "name": "Capteur de fenêtre"
       },
       "external_contact": {
         "name": "Porte (contact externe)"
@@ -399,8 +402,13 @@
         "name": "Couleur du dispositif",
         "state": {
           "White": "Blanc",
-          "Black": "Noir"
+          "Black": "Noir",
+          "WHITE": "Blanc",
+          "BLACK": "Noir"
         }
+      },
+      "device_state": {
+        "name": "État de l'appareil"
       },
       "device_label": {
         "name": "Étiquette du dispositif"
@@ -694,14 +702,41 @@
         "state": {
           "on": "Activé",
           "off": "Désactivé"
-        },
-        "state_attributes": {
-          "device_type": {
-            "name": "Type d'appareil"
-          },
-          "device_id": {
-            "name": "ID de l'appareil"
-          }
+        }
+      },
+      "chimes_enabled": {
+        "name": "Carillon",
+        "state": {
+          "on": "Activé",
+          "off": "Désactivé"
+        }
+      },
+      "beep_on_arm_disarm": {
+        "name": "Bip à l'armement/désarmement",
+        "state": {
+          "on": "Activé",
+          "off": "Désactivé"
+        }
+      },
+      "beep_on_delay": {
+        "name": "Bip pendant le délai",
+        "state": {
+          "on": "Activé",
+          "off": "Désactivé"
+        }
+      },
+      "blink_while_armed": {
+        "name": "Clignoter quand armé",
+        "state": {
+          "on": "Activé",
+          "off": "Désactivé"
+        }
+      },
+      "alerts_by_sirens": {
+        "name": "Alertes par sirènes",
+        "state": {
+          "on": "Activé",
+          "off": "Désactivé"
         }
       },
       "socket": {
@@ -795,7 +830,7 @@
           }
         }
       },
-      "external_contact": {
+      "external_contact_enabled": {
         "name": "Contact externe",
         "state": {
           "on": "Activé",
@@ -854,9 +889,9 @@
       "shock_sensitivity": {
         "name": "Sensibilité choc",
         "state": {
-          "faible": "Faible",
+          "low": "Faible",
           "normal": "Normal",
-          "élevé": "Élevé"
+          "high": "Élevé"
         }
       }
     }
