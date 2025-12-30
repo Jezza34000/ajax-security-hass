@@ -126,7 +126,7 @@ class GlassBreakHandler(AjaxDeviceHandler):
                     "key": "sensitivity",
                     "translation_key": "sensitivity",
                     "icon": "mdi:tune",
-                    "value_fn": lambda: {0: "Faible", 1: "Normal", 2: "Élevé"}.get(
+                    "value_fn": lambda: {0: "low", 1: "normal", 2: "high"}.get(
                         self.device.attributes.get("sensitivity"),
                         self.device.attributes.get("sensitivity"),
                     ),
@@ -145,7 +145,6 @@ class GlassBreakHandler(AjaxDeviceHandler):
             {
                 "key": "always_active",
                 "translation_key": "always_active",
-                "name": "Toujours actif",
                 "icon": "mdi:shield-alert",
                 "value_fn": lambda: self.device.attributes.get("always_active", False),
                 "api_key": "alwaysActive",
@@ -159,7 +158,6 @@ class GlassBreakHandler(AjaxDeviceHandler):
                 {
                     "key": "indicator_light",
                     "translation_key": "indicator_light",
-                    "name": "Indication LED",
                     "icon": "mdi:led-on",
                     "value_fn": lambda: self.device.attributes.get("indicatorLightMode")
                     == "STANDARD",
@@ -175,7 +173,6 @@ class GlassBreakHandler(AjaxDeviceHandler):
             {
                 "key": "night_mode",
                 "translation_key": "night_mode",
-                "name": "Armé en mode nuit",
                 "icon": "mdi:weather-night",
                 "value_fn": lambda: self.device.attributes.get("night_mode_arm", False),
                 "api_key": "nightModeArm",
@@ -188,7 +185,6 @@ class GlassBreakHandler(AjaxDeviceHandler):
             {
                 "key": "external_contact_enabled",
                 "translation_key": "external_contact_enabled",
-                "name": "Contact externe",
                 "icon": "mdi:electric-switch",
                 "value_fn": lambda: self.device.attributes.get(
                     "extra_contact_aware", False
@@ -203,7 +199,6 @@ class GlassBreakHandler(AjaxDeviceHandler):
             {
                 "key": "siren_trigger_glass",
                 "translation_key": "siren_trigger_glass",
-                "name": "Sirène si bris de verre",
                 "icon": "mdi:glass-fragile",
                 "value_fn": lambda: "GLASS"
                 in self.device.attributes.get("siren_triggers", []),

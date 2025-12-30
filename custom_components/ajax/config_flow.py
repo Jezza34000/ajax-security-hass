@@ -87,16 +87,11 @@ class AjaxConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ): SelectSelector(
                     SelectSelectorConfig(
                         options=[
-                            {
-                                "value": AUTH_MODE_PROXY_SECURE,
-                                "label": "Proxy Ajax",
-                            },
-                            {
-                                "value": AUTH_MODE_DIRECT,
-                                "label": "Direct (Clé API entreprise uniquement)",
-                            },
+                            AUTH_MODE_PROXY_SECURE,
+                            AUTH_MODE_DIRECT,
                         ],
                         mode=SelectSelectorMode.LIST,
+                        translation_key="auth_mode",
                     )
                 ),
             }
@@ -478,7 +473,7 @@ class AjaxOptionsFlow(config_entries.OptionsFlow):
     def _mask_credential(self, value: str | None) -> str:
         """Mask a credential for display (show first 4 and last 4 chars)."""
         if not value or len(value) < 10:
-            return "Non configuré"
+            return "Not configured"
         return f"{value[:4]}****{value[-4:]}"
 
     async def async_step_init(
@@ -535,21 +530,13 @@ class AjaxOptionsFlow(config_entries.OptionsFlow):
             ): SelectSelector(
                 SelectSelectorConfig(
                     options=[
-                        {"value": NOTIFICATION_FILTER_NONE, "label": "Aucune"},
-                        {
-                            "value": NOTIFICATION_FILTER_ALARMS_ONLY,
-                            "label": "Alarmes uniquement",
-                        },
-                        {
-                            "value": NOTIFICATION_FILTER_SECURITY_EVENTS,
-                            "label": "Événements de sécurité (alarmes + armement)",
-                        },
-                        {
-                            "value": NOTIFICATION_FILTER_ALL,
-                            "label": "Toutes les notifications",
-                        },
+                        NOTIFICATION_FILTER_NONE,
+                        NOTIFICATION_FILTER_ALARMS_ONLY,
+                        NOTIFICATION_FILTER_SECURITY_EVENTS,
+                        NOTIFICATION_FILTER_ALL,
                     ],
                     mode=SelectSelectorMode.DROPDOWN,
+                    translation_key="notification_filter",
                 )
             ),
         }
@@ -635,6 +622,6 @@ class AjaxOptionsFlow(config_entries.OptionsFlow):
             description_placeholders={
                 "current_access_key": self._mask_credential(current_access_key),
                 "current_secret_key": self._mask_credential(current_secret_key),
-                "current_queue": current_queue or "Non configuré",
+                "current_queue": current_queue or "Not configured",
             },
         )

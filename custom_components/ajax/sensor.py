@@ -76,7 +76,7 @@ def format_signal_level(signal: str | None) -> str | None:
 
 
 def format_event_text(event: dict) -> str:
-    """Format an SQS event into readable French text."""
+    """Format an SQS event into readable text."""
     event_type = event.get("event_type", "")
     action = event.get("action", "")
     source_name = event.get("source_name", "")
@@ -84,41 +84,41 @@ def format_event_text(event: dict) -> str:
     user_name = event.get("user_name") or source_name
     room_name = event.get("room_name")
 
-    # Map actions directly to French messages
+    # Map actions to English messages
     action_messages = {
         # Arming/Disarming (from SQS events)
-        "arm": "Armement",
-        "armed": "Armement",
-        "disarm": "Désarmement",
-        "disarmed": "Désarmement",
-        "nightmodeon": "Mode nuit activé",
-        "nightmodeoff": "Mode nuit désactivé",
-        "night_mode": "Mode nuit activé",
-        "night_mode_on": "Mode nuit activé",
-        "night_mode_off": "Mode nuit désactivé",
-        "partiallyarmed": "Armement partiel",
-        "partially_armed": "Armement partiel",
+        "arm": "Armed",
+        "armed": "Armed",
+        "disarm": "Disarmed",
+        "disarmed": "Disarmed",
+        "nightmodeon": "Night mode on",
+        "nightmodeoff": "Night mode off",
+        "night_mode": "Night mode on",
+        "night_mode_on": "Night mode on",
+        "night_mode_off": "Night mode off",
+        "partiallyarmed": "Partially armed",
+        "partially_armed": "Partially armed",
         # Alarms
-        "motion_detected": "Mouvement détecté",
-        "door_opened": "Porte ouverte",
-        "door_closed": "Porte fermée",
-        "glass_break_detected": "Bris de glace détecté",
-        "smoke_detected": "Fumée détectée",
-        "leak_detected": "Fuite d'eau détectée",
-        "tamper": "Sabotage détecté",
-        "tampered": "Sabotage détecté",
-        "panic": "Alarme panique",
+        "motion_detected": "Motion detected",
+        "door_opened": "Door opened",
+        "door_closed": "Door closed",
+        "glass_break_detected": "Glass break detected",
+        "smoke_detected": "Smoke detected",
+        "leak_detected": "Water leak detected",
+        "tamper": "Tamper detected",
+        "tampered": "Tamper detected",
+        "panic": "Panic alarm",
         # Device status
-        "online": "Appareil en ligne",
-        "offline": "Appareil hors ligne",
-        "low_battery": "Batterie faible",
-        "external_power_on": "Alimentation connectée",
-        "external_power_off": "Alimentation déconnectée",
+        "online": "Device online",
+        "offline": "Device offline",
+        "low_battery": "Low battery",
+        "external_power_on": "Power connected",
+        "external_power_off": "Power disconnected",
     }
 
     # Get message from action (case-insensitive)
     action_lower = action.lower() if action else ""
-    message = action_messages.get(action_lower, action or event_type or "Événement")
+    message = action_messages.get(action_lower, action or event_type or "Event")
 
     parts = [message]
     if device_name and device_name.strip():
@@ -126,7 +126,7 @@ def format_event_text(event: dict) -> str:
     if room_name and room_name.strip():
         parts.append(f"({room_name.strip()})")
     if user_name and user_name.strip():
-        parts.append(f"par {user_name.strip()}")
+        parts.append(f"by {user_name.strip()}")
 
     return " ".join(parts)
 
@@ -182,7 +182,7 @@ def get_last_event_attributes(space) -> dict[str, Any]:
 
 
 def _format_time_ago(timestamp: datetime) -> str:
-    """Format timestamp as 'X minutes ago' in French."""
+    """Format timestamp as 'X minutes ago'."""
     now = datetime.now(timezone.utc)
     if timestamp.tzinfo is None:
         timestamp = timestamp.replace(tzinfo=timezone.utc)
@@ -191,16 +191,16 @@ def _format_time_ago(timestamp: datetime) -> str:
     seconds = diff.total_seconds()
 
     if seconds < 60:
-        return "À l'instant"
+        return "Just now"
     elif seconds < 3600:
         minutes = int(seconds / 60)
-        return f"Il y a {minutes} min"
+        return f"{minutes} min ago"
     elif seconds < 86400:
         hours = int(seconds / 3600)
-        return f"Il y a {hours}h"
+        return f"{hours}h ago"
     else:
         days = int(seconds / 86400)
-        return f"Il y a {days}j"
+        return f"{days}d ago"
 
 
 # ==============================================================================

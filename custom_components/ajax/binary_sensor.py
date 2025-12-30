@@ -204,59 +204,18 @@ class AjaxBinarySensor(CoordinatorEntity[AjaxDataCoordinator], BinarySensorEntit
         if not device_entry:
             return
 
-        # Get model name with color
-        model_name = self._get_device_model_name(device.type.value)
+        # Get model name - use raw_type from API (e.g., "DoorProtect Plus")
+        model_name = device.raw_type or device.type.value.replace("_", " ").title()
         if device.device_color:
-            color_name = {
-                "WHITE": "Blanc",
-                "White": "Blanc",
-                "BLACK": "Noir",
-                "Black": "Noir",
-            }.get(str(device.device_color), str(device.device_color))
-            model_name = f"{model_name} ({color_name})"
+            # Keep color as-is from API (WHITE/BLACK are product colors)
+            color = str(device.device_color).title()
+            model_name = f"{model_name} ({color})"
 
         device_registry.async_update_device(
             device_entry.id,
             model=model_name,
             sw_version=device.firmware_version,
             hw_version=device.hardware_version,
-        )
-
-    def _get_device_model_name(self, device_type_value: str) -> str:
-        """Get translated device model name.
-
-        Args:
-            device_type_value: Device type enum value (e.g., "door_contact")
-
-        Returns:
-            Translated model name in French
-        """
-        translations = {
-            "motion_detector": "Détecteur de mouvement",
-            "door_contact": "Capteur de porte",
-            "glass_break": "Détecteur bris de glace",
-            "combi_protect": "Détecteur combiné",
-            "smoke_detector": "Détecteur de fumée",
-            "flood_detector": "Détecteur d'inondation",
-            "temperature_sensor": "Capteur de température",
-            "keypad": "Clavier",
-            "remote_control": "Télécommande",
-            "button": "Bouton",
-            "siren": "Sirène",
-            "transmitter": "Transmetteur",
-            "repeater": "Répéteur",
-            "wire_input": "Module d'entrée filaire",
-            "line_splitter": "Répartiteur de ligne",
-            "socket": "Prise connectée",
-            "relay": "Relais",
-            "thermostat": "Thermostat",
-            "life_quality": "Capteur qualité de l'air",
-            "camera": "Caméra",
-            "hub": "Hub",
-            "unknown": "Appareil inconnu",
-        }
-        return translations.get(
-            device_type_value, device_type_value.replace("_", " ").title()
         )
 
     @property
@@ -271,16 +230,12 @@ class AjaxBinarySensor(CoordinatorEntity[AjaxDataCoordinator], BinarySensorEntit
             f"{device.room_name} - {device.name}" if device.room_name else device.name
         )
 
-        # Get model name with color
-        model_name = self._get_device_model_name(device.type.value)
+        # Get model name - use raw_type from API (e.g., "DoorProtect Plus")
+        model_name = device.raw_type or device.type.value.replace("_", " ").title()
         if device.device_color:
-            color_name = {
-                "WHITE": "Blanc",
-                "White": "Blanc",
-                "BLACK": "Noir",
-                "Black": "Noir",
-            }.get(str(device.device_color), str(device.device_color))
-            model_name = f"{model_name} ({color_name})"
+            # Keep color as-is from API (WHITE/BLACK are product colors)
+            color = str(device.device_color).title()
+            model_name = f"{model_name} ({color})"
 
         info = {
             "identifiers": {(DOMAIN, self._device_id)},

@@ -309,7 +309,12 @@
         "name": "CO2"
       },
       "sensitivity": {
-        "name": "Sensitivity"
+        "name": "Sensitivity",
+        "state": {
+          "low": "Low",
+          "normal": "Normal",
+          "high": "High"
+        }
       },
       "malfunctions": {
         "name": "Malfunctions"
@@ -719,6 +724,13 @@
           "off": "Disabled"
         }
       },
+      "chimes": {
+        "name": "Chimes",
+        "state": {
+          "on": "Enabled",
+          "off": "Disabled"
+        }
+      },
       "external_contact_enabled": {
         "name": "External contact",
         "state": {
@@ -749,6 +761,13 @@
       },
       "beep_on_arm_disarm": {
         "name": "Beep on arming/disarming",
+        "state": {
+          "on": "Enabled",
+          "off": "Disabled"
+        }
+      },
+      "beep_on_arm": {
+        "name": "Beep on arm/disarm",
         "state": {
           "on": "Enabled",
           "off": "Disabled"
@@ -798,6 +817,13 @@
       },
       "siren_trigger_tilt": {
         "name": "Siren on tilt",
+        "state": {
+          "on": "Enabled",
+          "off": "Disabled"
+        }
+      },
+      "siren_trigger_glass": {
+        "name": "Siren on glass break",
         "state": {
           "on": "Enabled",
           "off": "Disabled"
@@ -922,6 +948,12 @@
     }
   },
   "selector": {
+    "auth_mode": {
+      "options": {
+        "proxy_secure": "Ajax Proxy",
+        "direct": "Direct (Enterprise API key only)"
+      }
+    },
     "notification_filter": {
       "options": {
         "none": "None",

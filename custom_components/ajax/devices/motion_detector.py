@@ -122,7 +122,7 @@ class MotionDetectorHandler(AjaxDeviceHandler):
                     "key": "sensitivity",
                     "translation_key": "sensitivity",
                     "icon": "mdi:tune",
-                    "value_fn": lambda: {0: "Faible", 1: "Normal", 2: "Élevé"}.get(
+                    "value_fn": lambda: {0: "low", 1: "normal", 2: "high"}.get(
                         self.device.attributes.get("sensitivity"),
                         self.device.attributes.get("sensitivity"),
                     ),
@@ -141,7 +141,6 @@ class MotionDetectorHandler(AjaxDeviceHandler):
             {
                 "key": "always_active",
                 "translation_key": "always_active",
-                "name": "Toujours actif",
                 "icon": "mdi:shield-alert",
                 "value_fn": lambda: self.device.attributes.get("always_active", False),
                 "api_key": "alwaysActive",
@@ -155,7 +154,6 @@ class MotionDetectorHandler(AjaxDeviceHandler):
                 {
                     "key": "indicator_light",
                     "translation_key": "indicator_light",
-                    "name": "Indication LED",
                     "icon": "mdi:led-on",
                     "value_fn": lambda: self.device.attributes.get("indicatorLightMode")
                     == "STANDARD",
@@ -171,7 +169,6 @@ class MotionDetectorHandler(AjaxDeviceHandler):
             {
                 "key": "night_mode",
                 "translation_key": "night_mode",
-                "name": "Armé en mode nuit",
                 "icon": "mdi:weather-night",
                 "value_fn": lambda: self.device.attributes.get("night_mode_arm", False),
                 "api_key": "nightModeArm",

@@ -168,7 +168,6 @@ class SirenHandler(AjaxDeviceHandler):
             {
                 "key": "night_mode",
                 "translation_key": "night_mode",
-                "name": "Armé en mode nuit",
                 "icon": "mdi:weather-night",
                 "value_fn": lambda: self.device.attributes.get("night_mode_arm", False),
                 "api_key": "nightModeArm",
@@ -181,7 +180,6 @@ class SirenHandler(AjaxDeviceHandler):
             {
                 "key": "beep_on_arm",
                 "translation_key": "beep_on_arm",
-                "name": "Bip lors armement/désarmement",
                 "icon": "mdi:volume-high",
                 "value_fn": lambda: self.device.attributes.get(
                     "beep_on_arm_disarm", False
@@ -196,7 +194,6 @@ class SirenHandler(AjaxDeviceHandler):
             {
                 "key": "beep_on_delay",
                 "translation_key": "beep_on_delay",
-                "name": "Bip pendant délai",
                 "icon": "mdi:timer-sand",
                 "value_fn": lambda: self.device.attributes.get("beep_on_delay", False),
                 "api_key": "beepOnDelay",
@@ -209,7 +206,6 @@ class SirenHandler(AjaxDeviceHandler):
             {
                 "key": "blink_while_armed",
                 "translation_key": "blink_while_armed",
-                "name": "Clignoter quand armé",
                 "icon": "mdi:led-on",
                 "value_fn": lambda: self._get_blink_state(),
                 "api_key": "v2sirenIndicatorLightMode",
@@ -226,7 +222,6 @@ class SirenHandler(AjaxDeviceHandler):
             {
                 "key": "chimes",
                 "translation_key": "chimes",
-                "name": "Carillons",
                 "icon": "mdi:bell-ring",
                 "value_fn": lambda: self.device.attributes.get("chimes_enabled", False),
                 "api_key": "chimesEnabled",

@@ -85,7 +85,7 @@
         "description": "Choisissez une catégorie à configurer",
         "menu_options": {
           "notifications": "Notifications",
-          "aws_credentials": "Credentials AWS SQS"
+          "aws_credentials": "Identifiants AWS SQS"
         }
       },
       "notifications": {
@@ -98,7 +98,7 @@
         }
       },
       "aws_credentials": {
-        "title": "Credentials AWS SQS",
+        "title": "Identifiants AWS SQS",
         "description": "Configurez les identifiants AWS pour recevoir les événements en temps réel.\n\n**Configuration actuelle:**\n- Clé d'accès: {current_access_key}\n- Clé secrète: {current_secret_key}\n- File SQS: {current_queue}\n\nLaissez un champ vide pour conserver la valeur actuelle.",
         "data": {
           "aws_access_key_id": "Clé d'accès AWS",
@@ -342,7 +342,12 @@
         "name": "État de la batterie"
       },
       "sensitivity": {
-        "name": "Sensibilité"
+        "name": "Sensibilité",
+        "state": {
+          "low": "Faible",
+          "normal": "Normal",
+          "high": "Élevé"
+        }
       },
       "color": {
         "name": "Couleur"
@@ -756,8 +761,22 @@
           "off": "Désactivé"
         }
       },
+      "chimes": {
+        "name": "Carillons",
+        "state": {
+          "on": "Activé",
+          "off": "Désactivé"
+        }
+      },
       "beep_on_arm_disarm": {
         "name": "Bip à l'armement/désarmement",
+        "state": {
+          "on": "Activé",
+          "off": "Désactivé"
+        }
+      },
+      "beep_on_arm": {
+        "name": "Bip armement/désarmement",
         "state": {
           "on": "Activé",
           "off": "Désactivé"
@@ -923,6 +942,13 @@
           "on": "Activé",
           "off": "Désactivé"
         }
+      },
+      "siren_trigger_glass": {
+        "name": "Sirène si bris de vitre",
+        "state": {
+          "on": "Activé",
+          "off": "Désactivé"
+        }
       }
     },
     "number": {
@@ -980,6 +1006,12 @@
     }
   },
   "selector": {
+    "auth_mode": {
+      "options": {
+        "proxy_secure": "Proxy Ajax",
+        "direct": "Direct (Clé API entreprise uniquement)"
+      }
+    },
     "notification_filter": {
       "options": {
         "none": "Aucune",

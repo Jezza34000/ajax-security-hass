@@ -342,7 +342,12 @@
         "name": "Estado de la batería"
       },
       "sensitivity": {
-        "name": "Sensibilidad"
+        "name": "Sensibilidad",
+        "state": {
+          "low": "Bajo",
+          "normal": "Normal",
+          "high": "Alto"
+        }
       },
       "color": {
         "name": "Color"
@@ -741,8 +746,22 @@
           "off": "Desactivado"
         }
       },
+      "chimes": {
+        "name": "Timbres",
+        "state": {
+          "on": "Activado",
+          "off": "Desactivado"
+        }
+      },
       "beep_on_arm_disarm": {
         "name": "Pitido al armar/desarmar",
+        "state": {
+          "on": "Activado",
+          "off": "Desactivado"
+        }
+      },
+      "beep_on_arm": {
+        "name": "Pitido armado/desarmado",
         "state": {
           "on": "Activado",
           "off": "Desactivado"
@@ -908,6 +927,13 @@
           "on": "Activado",
           "off": "Desactivado"
         }
+      },
+      "siren_trigger_glass": {
+        "name": "Sirena si rotura de cristal",
+        "state": {
+          "on": "Activado",
+          "off": "Desactivado"
+        }
       }
     },
     "number": {
@@ -965,6 +991,12 @@
     }
   },
   "selector": {
+    "auth_mode": {
+      "options": {
+        "proxy_secure": "Proxy Ajax",
+        "direct": "Directo (Solo clave API empresarial)"
+      }
+    },
     "notification_filter": {
       "options": {
         "none": "Ninguna",
