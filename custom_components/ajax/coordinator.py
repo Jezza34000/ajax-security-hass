@@ -1791,10 +1791,22 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
 
         self._pending_ha_actions[hub_id] = time.time()
 
-    def get_pending_ha_action(self, hub_id: str) -> bool:
+    def has_pending_ha_action(self, hub_id: str) -> bool:
         """Check if Home Assistant triggered an action on this hub recently.
 
         Returns True if HA action was within the last 10 seconds.
+        Does NOT consume the pending action (can be called multiple times).
+        """
+        import time
+
+        timestamp = self._pending_ha_actions.get(hub_id, 0)
+        return time.time() - timestamp < 10
+
+    def get_pending_ha_action(self, hub_id: str) -> bool:
+        """Check and consume pending HA action.
+
+        Returns True if HA action was within the last 10 seconds.
+        Clears the pending action after returning True.
         """
         import time
 

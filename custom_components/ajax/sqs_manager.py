@@ -386,20 +386,23 @@ class SQSManager:
         old_state = space.security_state
         state_changed = old_state != new_state
 
+        # Check if this was triggered by Home Assistant
+        ha_action_pending = self.coordinator.has_pending_ha_action(space.hub_id)
+        if ha_action_pending:
+            source_name = "Home Assistant"
+
         _LOGGER.info(
-            "SQS security: tag=%s, old=%s, new=%s, changed=%s",
+            "SQS security: tag=%s, old=%s, new=%s, changed=%s, ha_pending=%s",
             event_tag,
             old_state.value,
             new_state.value,
             state_changed,
+            ha_action_pending,
         )
 
-        # Check if this was triggered by Home Assistant
-        if self.coordinator.get_pending_ha_action(space.hub_id):
-            source_name = "Home Assistant"
-
-        # Update state if changed
-        if state_changed:
+        # Skip state update if HA action is pending (protect optimistic update)
+        # But still record the event in history and create notification
+        if state_changed and not ha_action_pending:
             space.security_state = new_state
             self._last_state_update[space.hub_id] = time.time()
 
