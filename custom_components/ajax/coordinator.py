@@ -115,8 +115,9 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             str, asyncio.Task
         ] = {}  # device_id -> fast polling task for door sensors
         self._door_sensor_poll_task: asyncio.Task | None = (
-            None  # Continuous door sensor polling when disarmed
+            None  # Continuous door sensor polling when disarmed or in night mode
         )
+        self._door_sensor_poll_security_state: SecurityState = SecurityState.DISARMED
         self._initial_load_done: bool = False  # Track if initial data load is complete
         self._pending_ha_actions: dict[
             str, float
@@ -182,22 +183,31 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             )
 
         # Manage door sensor fast polling based on security state
-        self._manage_door_sensor_polling(is_disarmed)
+        # Poll when disarmed OR in night mode (for sensors excluded from night mode)
+        should_poll = is_disarmed or security_state == SecurityState.NIGHT_MODE
+        self._manage_door_sensor_polling(should_poll, security_state)
 
-    def _manage_door_sensor_polling(self, should_poll: bool) -> None:
+    def _manage_door_sensor_polling(
+        self, should_poll: bool, security_state: SecurityState
+    ) -> None:
         """Start or stop door sensor fast polling.
 
         Args:
             should_poll: True to start polling, False to stop
+            security_state: Current security state (used to filter sensors in night mode)
         """
+        # Store security state for the polling loop
+        self._door_sensor_poll_security_state = security_state
+
         if should_poll and self._door_sensor_poll_task is None:
-            # Start door sensor polling when disarmed
+            # Start door sensor polling when disarmed or in night mode
             self._door_sensor_poll_task = asyncio.create_task(
                 self._async_poll_door_sensors_loop()
             )
             _LOGGER.info(
-                "Started door sensor fast polling (every %ds)",
+                "Started door sensor fast polling (every %ds, state: %s)",
                 UPDATE_INTERVAL_DOOR_SENSORS,
+                security_state.value,
             )
         elif not should_poll and self._door_sensor_poll_task is not None:
             # Stop door sensor polling when armed
@@ -206,7 +216,12 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             _LOGGER.info("Stopped door sensor fast polling (system armed)")
 
     async def _async_poll_door_sensors_loop(self) -> None:
-        """Continuous polling loop for door sensors when disarmed."""
+        """Continuous polling loop for door sensors.
+
+        Polls door sensors in two scenarios:
+        - When disarmed: poll all door sensors
+        - When in night mode: poll only sensors excluded from night mode
+        """
         try:
             while True:
                 await asyncio.sleep(UPDATE_INTERVAL_DOOR_SENSORS)
@@ -216,16 +231,27 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
 
                 # Poll door sensors for each space
                 for space_id, space in self.account.spaces.items():
-                    # Skip if system is not disarmed
-                    if space.security_state != SecurityState.DISARMED:
-                        continue
+                    current_state = space.security_state
 
-                    # Find all door contact devices
-                    door_sensors = [
-                        device
-                        for device in space.devices.values()
-                        if device.type == DeviceType.DOOR_CONTACT
-                    ]
+                    # Determine which sensors to poll based on security state
+                    if current_state == SecurityState.DISARMED:
+                        # When disarmed: poll all door sensors
+                        door_sensors = [
+                            device
+                            for device in space.devices.values()
+                            if device.type == DeviceType.DOOR_CONTACT
+                        ]
+                    elif current_state == SecurityState.NIGHT_MODE:
+                        # When in night mode: only poll sensors excluded from night mode
+                        door_sensors = [
+                            device
+                            for device in space.devices.values()
+                            if device.type == DeviceType.DOOR_CONTACT
+                            and not device.attributes.get("night_mode_arm", True)
+                        ]
+                    else:
+                        # Skip for other armed states
+                        continue
 
                     if not door_sensors:
                         continue
