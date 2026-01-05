@@ -84,13 +84,13 @@ Issues, pull requests, and feedback are welcome!
 |----------|---------|
 | **Hubs** | Hub, Hub Plus, Hub 2, Hub 2 Plus, Hub 2 (4G), Hub Hybrid |
 | **Motion Detectors** | MotionProtect, MotionProtect Plus, MotionProtect Outdoor, MotionCam, CombiProtect |
-| **Door/Window** | DoorProtect, DoorProtect Plus |
+| **Door/Window** | DoorProtect, DoorProtect Plus, MultiTransmitter (wired inputs) |
 | **Fire Safety** | FireProtect, FireProtect Plus, FireProtect 2 |
 | **Flood** | LeaksProtect |
 | **Glass Break** | GlassProtect |
 | **Sirens** | HomeSiren, StreetSiren, StreetSiren DoubleDeck |
 | **Keypads** | KeyPad, KeyPad Plus, KeyPad TouchScreen |
-| **Smart Devices** | Socket, WallSwitch, Relay |
+| **Smart Devices** | Socket, WallSwitch, LightSwitch, Relay |
 | **Accessories** | SpaceControl, Button, Tag, ReX, ReX 2 |
 
 ### 📊 Rich Entity Support
