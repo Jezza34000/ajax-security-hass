@@ -102,6 +102,8 @@ RELAY_EVENTS = {
     "switchedoff": ("switched_off", False),
     "turnedon": ("light_on", True),
     "turnedoff": ("light_off", False),
+    "relayonbyuser": ("relay_on", True),
+    "relayoffbyuser": ("relay_off", False),
 }
 
 BUTTON_EVENTS = {
