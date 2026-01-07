@@ -31,6 +31,7 @@ from .sqs_manager import (
     GLASS_EVENTS,
     MOTION_EVENTS,
     RELAY_EVENTS,
+    SCENARIO_EVENTS,
     SMOKE_EVENTS,
     TAMPER_EVENTS,
 )
@@ -201,6 +202,8 @@ class SSEManager:
                 self._handle_device_status_event(space, event, event_tag)
             elif event_tag in RELAY_EVENTS:
                 self._handle_relay_event(space, event, event_tag)
+            elif event_tag in SCENARIO_EVENTS:
+                self._handle_scenario_event(space, event, event_tag)
             else:
                 _LOGGER.debug("SSE: Unhandled event tag: %s", event_tag)
 
@@ -372,3 +375,45 @@ class SSEManager:
             dev = space.devices[device_id]
             dev.attributes["is_on"] = is_on
             _LOGGER.debug("SSE: %s %s", dev.name, action_key)
+
+    def _handle_scenario_event(self, space, event: dict, event_tag: str) -> None:
+        """Handle scenario events that might be triggered by a Button.
+
+        When a Button is configured in 'Control' mode, Ajax doesn't send a direct
+        button press event. Instead, it sends a scenario event (e.g., RelayOnByScenario).
+        We extract the initiator info to identify the button and fire an HA event.
+        """
+        # Extract initiator info from additionalDataV2
+        additional_data_v2 = event.get("additionalDataV2", [])
+        source_name = event.get("sourceObjectName", "")
+
+        initiator_name = None
+        initiator_type = None
+        for data in additional_data_v2:
+            if data.get("additionalDataV2Type") == "INITIATOR_INFO":
+                initiator_name = data.get("objectName")
+                initiator_type = data.get("objectType")
+                break
+
+        if not initiator_name:
+            _LOGGER.debug("SSE scenario: no initiator info found")
+            return
+
+        _LOGGER.info(
+            "SSE scenario: %s triggered by %s (type=%s)",
+            event_tag,
+            initiator_name,
+            initiator_type,
+        )
+
+        # Fire a Home Assistant event for automations
+        self.coordinator.hass.bus.async_fire(
+            "ajax_scenario_triggered",
+            {
+                "scenario_name": initiator_name,
+                "initiator_type": initiator_type,
+                "target_name": source_name,
+                "event_tag": event_tag,
+                "space_name": space.name,
+            },
+        )
