@@ -43,6 +43,8 @@ DEVICE_HANDLERS = {
     DeviceType.FLOOD_DETECTOR: FloodDetectorHandler,
     DeviceType.GLASS_BREAK: GlassBreakHandler,
     DeviceType.SIREN: SirenHandler,
+    DeviceType.TRANSMITTER: SirenHandler,
+    DeviceType.MULTI_TRANSMITTER: SirenHandler,
     DeviceType.SOCKET: SocketHandler,
     DeviceType.RELAY: SocketHandler,
     DeviceType.WALLSWITCH: SocketHandler,
