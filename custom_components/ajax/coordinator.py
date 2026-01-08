@@ -1082,14 +1082,20 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                 # externalContactState: OK=closed, TRIGGERED=open
                 door_opened = ext_state != "OK"
 
-                # For TWO_EOL wiring, also check contactTwoDetails.contactState
-                # contactTwoDetails is the actual door contact (contactOneDetails is tamper)
+                # Check wiringSchemeSpecificDetails for more accurate state
                 wiring_details = device_data.get("wiringSchemeSpecificDetails", {})
-                if wiring_details.get("wiringSchemeType") == "TWO_EOL":
+                wiring_type = wiring_details.get("wiringSchemeType")
+
+                if wiring_type == "TWO_EOL":
+                    # TWO_EOL: contactTwoDetails is the door contact (contactOneDetails is tamper)
                     contact_two = wiring_details.get("contactTwoDetails", {})
                     contact_state = contact_two.get("contactState")
                     if contact_state:
-                        # Use contactTwoDetails.contactState as primary for TWO_EOL
+                        door_opened = contact_state != "OK"
+                elif wiring_type in ("NO_EOL", "ONE_EOL"):
+                    # NO_EOL/ONE_EOL: contactState is directly in wiringSchemeSpecificDetails
+                    contact_state = wiring_details.get("contactState")
+                    if contact_state:
                         door_opened = contact_state != "OK"
 
                 device.attributes["door_opened"] = door_opened
@@ -1219,11 +1225,19 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                 # externalContactState: "OK" = closed, "TRIGGERED" = open
                 door_opened = ext_state != "OK"
 
-                # For TWO_EOL wiring, use contactTwoDetails.contactState
+                # Check wiringSchemeSpecificDetails for more accurate state
                 wiring_details = api_attributes.get("wiringSchemeSpecificDetails", {})
-                if wiring_details.get("wiringSchemeType") == "TWO_EOL":
+                wiring_type = wiring_details.get("wiringSchemeType")
+
+                if wiring_type == "TWO_EOL":
+                    # TWO_EOL: contactTwoDetails is the door contact
                     contact_two = wiring_details.get("contactTwoDetails", {})
                     contact_state = contact_two.get("contactState")
+                    if contact_state:
+                        door_opened = contact_state != "OK"
+                elif wiring_type in ("NO_EOL", "ONE_EOL"):
+                    # NO_EOL/ONE_EOL: contactState is directly in wiringSchemeSpecificDetails
+                    contact_state = wiring_details.get("contactState")
                     if contact_state:
                         door_opened = contact_state != "OK"
 
