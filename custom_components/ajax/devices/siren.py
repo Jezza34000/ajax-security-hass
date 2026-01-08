@@ -30,17 +30,18 @@ class SirenHandler(AjaxDeviceHandler):
 
         # Note: "armed_in_night_mode" is now a switch, not a binary sensor
 
-        # Tamper / Couvercle
-        sensors.append(
-            {
-                "key": "tamper",
-                "translation_key": "tamper",
-                "device_class": BinarySensorDeviceClass.TAMPER,
-                "icon": "mdi:lock-open-alert",
-                "value_fn": lambda: self.device.attributes.get("tampered", False),
-                "enabled_by_default": True,
-            }
-        )
+        # Tamper / Couvercle - only if device has tamper sensor (not None)
+        if self.device.attributes.get("tampered") is not None:
+            sensors.append(
+                {
+                    "key": "tamper",
+                    "translation_key": "tamper",
+                    "device_class": BinarySensorDeviceClass.TAMPER,
+                    "icon": "mdi:lock-open-alert",
+                    "value_fn": lambda: self.device.attributes.get("tampered", False),
+                    "enabled_by_default": True,
+                }
+            )
 
         return sensors
 
@@ -48,35 +49,33 @@ class SirenHandler(AjaxDeviceHandler):
         """Return sensor entities for sirens."""
         sensors = []
 
-        # Battery level
-        sensors.append(
-            {
-                "key": "battery",
-                "translation_key": "battery",
-                "device_class": SensorDeviceClass.BATTERY,
-                "native_unit_of_measurement": PERCENTAGE,
-                "state_class": SensorStateClass.MEASUREMENT,
-                "value_fn": lambda: self.device.battery_level
-                if self.device.battery_level is not None
-                else None,
-                "enabled_by_default": True,
-            }
-        )
+        # Battery level - only create if device has battery
+        if self.device.battery_level is not None:
+            sensors.append(
+                {
+                    "key": "battery",
+                    "translation_key": "battery",
+                    "device_class": SensorDeviceClass.BATTERY,
+                    "native_unit_of_measurement": PERCENTAGE,
+                    "state_class": SensorStateClass.MEASUREMENT,
+                    "value_fn": lambda: self.device.battery_level,
+                    "enabled_by_default": True,
+                }
+            )
 
-        # Signal strength
-        sensors.append(
-            {
-                "key": "signal_strength",
-                "translation_key": "signal_strength",
-                "icon": "mdi:signal",
-                "native_unit_of_measurement": PERCENTAGE,
-                "state_class": SensorStateClass.MEASUREMENT,
-                "value_fn": lambda: self.device.signal_strength
-                if self.device.signal_strength is not None
-                else None,
-                "enabled_by_default": True,
-            }
-        )
+        # Signal strength - only create if device has signal
+        if self.device.signal_strength is not None:
+            sensors.append(
+                {
+                    "key": "signal_strength",
+                    "translation_key": "signal_strength",
+                    "icon": "mdi:signal",
+                    "native_unit_of_measurement": PERCENTAGE,
+                    "state_class": SensorStateClass.MEASUREMENT,
+                    "value_fn": lambda: self.device.signal_strength,
+                    "enabled_by_default": True,
+                }
+            )
 
         # Temperature
         if "temperature" in self.device.attributes:
@@ -160,74 +159,88 @@ class SirenHandler(AjaxDeviceHandler):
         return str(duration).lower() if duration else None
 
     def get_switches(self) -> list[dict]:
-        """Return switch entities for sirens."""
+        """Return switch entities for sirens and transmitters."""
         switches = []
 
-        # Night Mode switch
-        switches.append(
-            {
-                "key": "night_mode",
-                "translation_key": "night_mode",
-                "icon": "mdi:weather-night",
-                "value_fn": lambda: self.device.attributes.get("night_mode_arm", False),
-                "api_key": "nightModeArm",
-                "enabled_by_default": True,
-            }
-        )
+        # Night Mode switch - only for devices that support it
+        if "night_mode_arm" in self.device.attributes:
+            switches.append(
+                {
+                    "key": "night_mode",
+                    "translation_key": "night_mode",
+                    "icon": "mdi:weather-night",
+                    "value_fn": lambda: self.device.attributes.get(
+                        "night_mode_arm", False
+                    ),
+                    "api_key": "nightModeArm",
+                    "enabled_by_default": True,
+                }
+            )
 
-        # Beep on arm/disarm
-        switches.append(
-            {
-                "key": "beep_on_arm",
-                "translation_key": "beep_on_arm",
-                "icon": "mdi:volume-high",
-                "value_fn": lambda: self.device.attributes.get(
-                    "beep_on_arm_disarm", False
-                ),
-                "api_key": "beepOnArmDisarm",
-                "enabled_by_default": True,
-            }
-        )
+        # Beep on arm/disarm - only for sirens
+        if "beep_on_arm_disarm" in self.device.attributes:
+            switches.append(
+                {
+                    "key": "beep_on_arm",
+                    "translation_key": "beep_on_arm",
+                    "icon": "mdi:volume-high",
+                    "value_fn": lambda: self.device.attributes.get(
+                        "beep_on_arm_disarm", False
+                    ),
+                    "api_key": "beepOnArmDisarm",
+                    "enabled_by_default": True,
+                }
+            )
 
-        # Beep on delay
-        switches.append(
-            {
-                "key": "beep_on_delay",
-                "translation_key": "beep_on_delay",
-                "icon": "mdi:timer-sand",
-                "value_fn": lambda: self.device.attributes.get("beep_on_delay", False),
-                "api_key": "beepOnDelay",
-                "enabled_by_default": True,
-            }
-        )
+        # Beep on delay - only for sirens
+        if "beep_on_delay" in self.device.attributes:
+            switches.append(
+                {
+                    "key": "beep_on_delay",
+                    "translation_key": "beep_on_delay",
+                    "icon": "mdi:timer-sand",
+                    "value_fn": lambda: self.device.attributes.get(
+                        "beep_on_delay", False
+                    ),
+                    "api_key": "beepOnDelay",
+                    "enabled_by_default": True,
+                }
+            )
 
-        # Blink while armed (LED)
-        switches.append(
-            {
-                "key": "blink_while_armed",
-                "translation_key": "blink_while_armed",
-                "icon": "mdi:led-on",
-                "value_fn": lambda: self._get_blink_state(),
-                "api_key": "v2sirenIndicatorLightMode",
-                "api_value_on": "BLINK_WHILE_ARMED",
-                "api_value_off": "DISABLED",
-                "api_extra": {"blinkWhileArmed": True},
-                "api_extra_off": {"blinkWhileArmed": False},
-                "enabled_by_default": True,
-            }
-        )
+        # Blink while armed (LED) - only for sirens
+        if (
+            "led_indication" in self.device.attributes
+            or "blink_while_armed" in self.device.attributes
+        ):
+            switches.append(
+                {
+                    "key": "blink_while_armed",
+                    "translation_key": "blink_while_armed",
+                    "icon": "mdi:led-on",
+                    "value_fn": lambda: self._get_blink_state(),
+                    "api_key": "v2sirenIndicatorLightMode",
+                    "api_value_on": "BLINK_WHILE_ARMED",
+                    "api_value_off": "DISABLED",
+                    "api_extra": {"blinkWhileArmed": True},
+                    "api_extra_off": {"blinkWhileArmed": False},
+                    "enabled_by_default": True,
+                }
+            )
 
-        # Chimes enabled
-        switches.append(
-            {
-                "key": "chimes",
-                "translation_key": "chimes",
-                "icon": "mdi:bell-ring",
-                "value_fn": lambda: self.device.attributes.get("chimes_enabled", False),
-                "api_key": "chimesEnabled",
-                "enabled_by_default": True,
-            }
-        )
+        # Chimes enabled - only for sirens
+        if "chimes_enabled" in self.device.attributes:
+            switches.append(
+                {
+                    "key": "chimes",
+                    "translation_key": "chimes",
+                    "icon": "mdi:bell-ring",
+                    "value_fn": lambda: self.device.attributes.get(
+                        "chimes_enabled", False
+                    ),
+                    "api_key": "chimesEnabled",
+                    "enabled_by_default": True,
+                }
+            )
 
         return switches
 

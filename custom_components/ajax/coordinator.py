@@ -963,10 +963,13 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             # Battery and signal: only update every 5 minutes (or for new devices)
             # These don't change often and SQS sends MALFUNCTION events for low battery
             if need_details_refresh or is_new_device:
-                device.battery_level = device_data.get(
-                    "batteryChargeLevelPercentage",
-                    device_data.get("battery_level"),
-                )
+                # Battery level: try multiple field names
+                battery = device_data.get("batteryChargeLevelPercentage")
+                if battery is None:
+                    battery = device_data.get("batteryPercents")
+                if battery is None:
+                    battery = device_data.get("battery_level")
+                device.battery_level = battery
                 device.battery_state = device_data.get(
                     "batteryState", device_data.get("battery_state")
                 )
@@ -1620,6 +1623,8 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             "motion_protect_curtain": DeviceType.MOTION_DETECTOR,
             "motionprotectoutdoor": DeviceType.MOTION_DETECTOR,
             "motion_protect_outdoor": DeviceType.MOTION_DETECTOR,
+            "motioncamfibra": DeviceType.MOTION_DETECTOR,
+            "motion_cam_fibra": DeviceType.MOTION_DETECTOR,
             # Combi detectors (motion + glass break)
             "combi_protect": DeviceType.COMBI_PROTECT,
             "combiprotect": DeviceType.COMBI_PROTECT,
@@ -1629,6 +1634,8 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             "doorprotect": DeviceType.DOOR_CONTACT,
             "doorprotectplus": DeviceType.DOOR_CONTACT,
             "door_protect_plus": DeviceType.DOOR_CONTACT,
+            "doorprotectplusfibra": DeviceType.DOOR_CONTACT,
+            "door_protect_plus_fibra": DeviceType.DOOR_CONTACT,
             "door": DeviceType.DOOR_CONTACT,
             "window": DeviceType.DOOR_CONTACT,
             "opening": DeviceType.DOOR_CONTACT,
@@ -1644,6 +1651,8 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             "fire_protect_plus": DeviceType.SMOKE_DETECTOR,
             "fireprotect2plus": DeviceType.SMOKE_DETECTOR,
             "fire_protect_2_plus": DeviceType.SMOKE_DETECTOR,
+            "fireprotect2": DeviceType.SMOKE_DETECTOR,
+            "fire_protect_2": DeviceType.SMOKE_DETECTOR,
             "smoke": DeviceType.SMOKE_DETECTOR,
             "fire": DeviceType.SMOKE_DETECTOR,
             # Flood detectors
@@ -1684,6 +1693,8 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             "keypad_outdoor": DeviceType.KEYPAD,
             "keypadoutdoorfibra": DeviceType.KEYPAD,
             "keypad_outdoor_fibra": DeviceType.KEYPAD,
+            "keypadfibra": DeviceType.KEYPAD,
+            "keypad_fibra": DeviceType.KEYPAD,
             # Remote controls
             "space_control": DeviceType.REMOTE_CONTROL,
             "spacecontrol": DeviceType.REMOTE_CONTROL,
@@ -1701,12 +1712,18 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             "street_siren": DeviceType.SIREN,
             "streetsirendoubledeck": DeviceType.SIREN,
             "street_siren_double_deck": DeviceType.SIREN,
+            "streetsirefibra": DeviceType.SIREN,
+            "street_siren_fibra": DeviceType.SIREN,
+            "homesirefibra": DeviceType.SIREN,
+            "home_siren_fibra": DeviceType.SIREN,
             # SpeakerPhone
             "speakerphone": DeviceType.SPEAKERPHONE,
             # Transmitter
             "transmitter": DeviceType.TRANSMITTER,
             "transmitterfibra": DeviceType.TRANSMITTER,
             "transmitter_fibra": DeviceType.TRANSMITTER,
+            "transmitterfibratwochannels": DeviceType.TRANSMITTER,
+            "transmitter_fibra_two_channels": DeviceType.TRANSMITTER,
             "integration": DeviceType.TRANSMITTER,
             # MultiTransmitter (wired sensors hub)
             "multitransmitter": DeviceType.MULTI_TRANSMITTER,
@@ -1718,6 +1735,8 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             "multitransmitter_wire_input": DeviceType.WIRE_INPUT,
             "multitransmitterfibrawireinput": DeviceType.WIRE_INPUT,
             "multitransmitter_fibra_wire_input": DeviceType.WIRE_INPUT,
+            "multitransmitterwireinputrs": DeviceType.WIRE_INPUT,
+            "multitransmitter_wire_input_rs": DeviceType.WIRE_INPUT,
             # Repeater / Range Extender
             "repeater": DeviceType.REPEATER,
             "rex": DeviceType.REPEATER,
