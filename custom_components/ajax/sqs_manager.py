@@ -221,12 +221,13 @@ class SQSManager:
             additional_data_v2 = event.get("additionalDataV2", [])
 
             _LOGGER.info(
-                "SQS event: type=%s, tag=%s, code=%s, source=%s (%s), transition=%s",
+                "SQS event: type=%s, tag=%s, code=%s, source=%s (%s), id=%s, transition=%s",
                 event_type,
                 event_tag,
                 event_code,
                 source_name,
                 source_type,
+                source_id,
                 transition,
             )
 
@@ -299,7 +300,13 @@ class SQSManager:
                     space, event_tag, source_name, source_id
                 )
             else:
-                _LOGGER.debug("SQS event %s not handled specifically", event_tag)
+                _LOGGER.warning(
+                    "SQS event not handled: tag=%s, type=%s, source=%s (id=%s)",
+                    event_tag,
+                    source_type,
+                    source_name,
+                    source_id,
+                )
 
             # Create notification if it's an alarm event
             if (

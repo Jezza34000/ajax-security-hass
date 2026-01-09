@@ -955,6 +955,16 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                 space.devices[device_id] = device
                 new_devices_count += 1
 
+                # Log new device with details for debugging
+                multi_tx_id = device_data.get("multiTransmitterId", "")
+                _LOGGER.debug(
+                    "New device: %s (id=%s, type=%s, multiTxId=%s)",
+                    device.name,
+                    device_id,
+                    raw_device_type,
+                    multi_tx_id,
+                )
+
                 # Log warning for unknown device types
                 if device_type == DeviceType.UNKNOWN:
                     _LOGGER.warning(
@@ -1122,6 +1132,17 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                         door_opened = contact_state != "OK"
 
                 device.attributes["door_opened"] = door_opened
+
+                # Debug log for WireInput door state
+                _LOGGER.debug(
+                    "WireInput %s: extState=%s, wiringType=%s, contactState=%s -> door_opened=%s",
+                    device.name if hasattr(device, "name") else device_id,
+                    ext_state,
+                    wiring_type,
+                    wiring_details.get("contactState")
+                    or wiring_details.get("contactTwoDetails", {}).get("contactState"),
+                    door_opened,
+                )
 
             # Sensitivity (GlassProtect, MotionProtect, etc.)
             if "sensitivity" in device_data:
