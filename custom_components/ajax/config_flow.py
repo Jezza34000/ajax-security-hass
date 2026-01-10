@@ -24,6 +24,7 @@ from .api import (
 )
 from .const import (
     AUTH_MODE_DIRECT,
+    AUTH_MODE_PROXY_HYBRID,
     AUTH_MODE_PROXY_SECURE,
     CONF_API_KEY,
     CONF_AUTH_MODE,
@@ -480,9 +481,22 @@ class AjaxOptionsFlow(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Manage the options - main menu."""
+        # Build menu options based on auth mode
+        menu_options = ["notifications"]
+
+        auth_mode = self.config_entry.data.get(CONF_AUTH_MODE, AUTH_MODE_DIRECT)
+
+        # Show proxy settings only for proxy modes
+        if auth_mode in (AUTH_MODE_PROXY_SECURE, AUTH_MODE_PROXY_HYBRID):
+            menu_options.append("proxy_settings")
+
+        # Show AWS credentials only for direct mode
+        if auth_mode == AUTH_MODE_DIRECT:
+            menu_options.append("aws_credentials")
+
         return self.async_show_menu(
             step_id="init",
-            menu_options=["notifications", "aws_credentials"],
+            menu_options=menu_options,
         )
 
     async def async_step_notifications(
@@ -559,6 +573,51 @@ class AjaxOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="notifications",
             data_schema=vol.Schema(schema_dict),
+        )
+
+    async def async_step_proxy_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage proxy settings."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            new_proxy_url = user_input.get(CONF_PROXY_URL, "").strip()
+
+            if new_proxy_url:
+                # Validate URL format
+                if not new_proxy_url.startswith(("http://", "https://")):
+                    errors["base"] = "invalid_proxy_url"
+                else:
+                    # Update config entry data with new proxy URL
+                    new_data = {**self.config_entry.data}
+                    new_data[CONF_PROXY_URL] = new_proxy_url.rstrip("/")
+
+                    self.hass.config_entries.async_update_entry(
+                        self.config_entry,
+                        data=new_data,
+                    )
+
+                    return self.async_create_entry(
+                        title="", data=self.config_entry.options
+                    )
+
+        # Get current proxy URL
+        current_proxy_url = self.config_entry.data.get(CONF_PROXY_URL, "")
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_PROXY_URL,
+                    default=current_proxy_url,
+                ): str,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="proxy_settings",
+            data_schema=data_schema,
+            errors=errors,
         )
 
     async def async_step_aws_credentials(

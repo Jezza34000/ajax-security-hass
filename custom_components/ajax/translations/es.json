@@ -70,7 +70,8 @@
       "invalid_password": "Correo o contraseña incorrectos. Verifique sus credenciales de cuenta Ajax.",
       "invalid_account_type": "Tipo de cuenta no soportado. Use una cuenta de usuario (no una cuenta PRO/Empresarial).",
       "invalid_2fa": "Código de verificación inválido. Por favor, inténtelo de nuevo.",
-      "unknown": "Error inesperado. Consulte los registros para más detalles."
+      "unknown": "Error inesperado. Consulte los registros para más detalles.",
+      "invalid_proxy_url": "URL del proxy inválida. La URL debe comenzar con http:// o https://"
     },
     "abort": {
       "already_configured": "Esta integración Ajax ya está configurada.",
@@ -85,6 +86,7 @@
         "description": "Elija una categoría para configurar",
         "menu_options": {
           "notifications": "Notificaciones",
+          "proxy_settings": "Configuración del proxy",
           "aws_credentials": "Credenciales AWS SQS"
         }
       },
@@ -95,6 +97,16 @@
           "persistent_notification": "Mostrar notificaciones persistentes",
           "notification_filter": "Filtro de notificaciones",
           "monitored_spaces": "Espacios a monitorear"
+        }
+      },
+      "proxy_settings": {
+        "title": "Configuración del proxy",
+        "description": "Cambie la URL de su servidor proxy Ajax.",
+        "data": {
+          "proxy_url": "URL del proxy"
+        },
+        "data_description": {
+          "proxy_url": "Ejemplo: https://mi-proxy.ejemplo.com"
         }
       },
       "aws_credentials": {
