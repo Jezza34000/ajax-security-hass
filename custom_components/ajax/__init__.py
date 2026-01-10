@@ -205,9 +205,10 @@ async def _async_setup_services(
 
     async def handle_get_raw_devices(call: ServiceCall) -> None:
         """Handle get raw devices service call - get full raw API data for all devices."""
-        _LOGGER.info("Getting full raw data for all devices")
+        _LOGGER.info("Getting full raw data for all devices and cameras")
 
         all_devices = []
+        all_cameras = []
         hub_count = 0
 
         if coordinator.account:
@@ -241,13 +242,41 @@ async def _async_setup_services(
                             "Failed to get devices for hub %s: %s", hub_id, err
                         )
 
-        # Write to file
+            # Fetch cameras (separate API endpoint)
+            try:
+                cameras_list = await coordinator.api.async_get_cameras()
+                for camera_summary in cameras_list:
+                    camera_id = camera_summary.get("id")
+                    if camera_id:
+                        try:
+                            full_camera = await coordinator.api.async_get_camera(
+                                camera_id
+                            )
+                            all_cameras.append(full_camera)
+                        except Exception as cam_err:
+                            _LOGGER.warning(
+                                "Failed to get camera %s: %s",
+                                camera_id,
+                                cam_err,
+                            )
+                            all_cameras.append(camera_summary)
+            except Exception as err:
+                _LOGGER.warning("Failed to get cameras: %s", err)
+
+        # Write to file (include both devices and cameras)
         output_path = Path(hass.config.path("ajax_raw_devices.json"))
+        output_data = {
+            "devices": all_devices,
+            "cameras": all_cameras,
+        }
         with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(all_devices, f, indent=2, default=str, ensure_ascii=False)
+            json.dump(output_data, f, indent=2, default=str, ensure_ascii=False)
 
         _LOGGER.info(
-            "Raw devices data written to %s (%d devices)", output_path, len(all_devices)
+            "Raw data written to %s (%d devices, %d cameras)",
+            output_path,
+            len(all_devices),
+            len(all_cameras),
         )
 
         # Create notification with summary
@@ -263,8 +292,9 @@ async def _async_setup_services(
 
         message = (
             f"**Hubs:** {hub_count}\n"
-            f"**Total devices:** {len(all_devices)}\n\n"
-            f"**Types:**\n{type_list}\n\n"
+            f"**Devices:** {len(all_devices)}\n"
+            f"**Cameras:** {len(all_cameras)}\n\n"
+            f"**Device types:**\n{type_list}\n\n"
             f"Saved to: {output_path}"
         )
 
