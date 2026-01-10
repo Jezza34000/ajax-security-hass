@@ -97,6 +97,8 @@ TAMPER_EVENTS = {
     "lidopen": ("tamper_open", True),
     "lidclosed": ("tamper_closed", False),
     "tampered": ("tamper_open", True),
+    "tamperopened": ("tamper_open", True),  # Uses transition for actual state
+    "tamperclosed": ("tamper_closed", False),
 }
 
 DEVICE_STATUS_EVENTS = {

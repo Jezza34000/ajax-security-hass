@@ -222,7 +222,9 @@ class SSEManager:
             elif event_tag in GLASS_EVENTS:
                 self._handle_glass_event(space, event_tag, source_name, source_id)
             elif event_tag in TAMPER_EVENTS:
-                self._handle_tamper_event(space, event_tag, source_name, source_id)
+                self._handle_tamper_event(
+                    space, event_tag, source_name, source_id, transition
+                )
             elif event_tag in DEVICE_STATUS_EVENTS:
                 self._handle_device_status_event(
                     space, event_tag, source_name, source_id
@@ -411,15 +413,26 @@ class SSEManager:
             )
 
     def _handle_tamper_event(
-        self, space, event_tag: str, source_name: str, source_id: str
+        self, space, event_tag: str, source_name: str, source_id: str, transition: str
     ) -> None:
         """Handle tamper events."""
         action_key, is_triggered = TAMPER_EVENTS[event_tag]
 
+        # Use transition to determine actual state (like door events)
+        if transition == "RECOVERED":
+            is_triggered = False
+        elif transition == "TRIGGERED":
+            is_triggered = True
+
         dev = self._find_device(space, source_name, source_id)
         if dev:
             dev.attributes["tampered"] = is_triggered
-            _LOGGER.info("SSE instant: %s -> %s", dev.name, action_key)
+            _LOGGER.info(
+                "SSE instant: %s -> %s (transition=%s)",
+                dev.name,
+                action_key,
+                transition,
+            )
         else:
             _LOGGER.warning(
                 "SSE: Device not found for tamper: name=%s, id=%s",
