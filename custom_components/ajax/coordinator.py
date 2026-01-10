@@ -1197,6 +1197,26 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                 else:
                     device.attributes["is_on"] = True
 
+            # LightSwitch multi-gang: Parse channelStatuses and button names
+            # These are at root level of device_data, not inside "attributes"
+            if "channelStatuses" in device_data:
+                channel_statuses = device_data.get("channelStatuses", [])
+                device.attributes["channel_1_on"] = "CHANNEL_1_ON" in channel_statuses
+                device.attributes["channel_2_on"] = "CHANNEL_2_ON" in channel_statuses
+
+            if "buttonOne" in device_data or "buttonTwo" in device_data:
+                button_one = device_data.get("buttonOne", {})
+                button_two = device_data.get("buttonTwo", {})
+                if button_one:
+                    device.attributes["channel_1_name"] = button_one.get(
+                        "buttonName", "Channel 1"
+                    )
+                if button_two:
+                    device.attributes["channel_2_name"] = button_two.get(
+                        "buttonName", "Channel 2"
+                    )
+                device.attributes["is_multi_gang"] = bool(button_one or button_two)
+
             # Update device metadata (API uses "color" not "device_color")
             device.device_color = device_data.get("color")
             device.device_label = device_data.get("device_label")
@@ -1343,23 +1363,9 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             else:
                 normalized["is_on"] = True
 
-        # LightSwitch multi-gang: Parse channelStatuses and button names
-        if device_type == DeviceType.WALLSWITCH and "channelStatuses" in api_attributes:
-            channel_statuses = api_attributes.get("channelStatuses", [])
-            # channelStatuses: ["CHANNEL_1_ON"], ["CHANNEL_2_ON"], or both, or empty
-            normalized["channel_1_on"] = "CHANNEL_1_ON" in channel_statuses
-            normalized["channel_2_on"] = "CHANNEL_2_ON" in channel_statuses
-
-            # Parse button names for channel identification
-            button_one = api_attributes.get("buttonOne", {})
-            button_two = api_attributes.get("buttonTwo", {})
-            if button_one:
-                normalized["channel_1_name"] = button_one.get("buttonName", "Channel 1")
-            if button_two:
-                normalized["channel_2_name"] = button_two.get("buttonName", "Channel 2")
-
-            # Mark as multi-gang device
-            normalized["is_multi_gang"] = bool(button_one or button_two)
+        # Note: LightSwitch multi-gang (channelStatuses, buttonOne, buttonTwo)
+        # is parsed directly from device_data in _update_devices since these
+        # fields are at root level, not inside "attributes"
 
         return normalized
 
