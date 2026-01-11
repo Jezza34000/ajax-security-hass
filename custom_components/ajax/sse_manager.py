@@ -294,11 +294,16 @@ class SSEManager:
         # Group arm/disarm events need a FULL refresh to update group states
         is_group_event = event_tag in ("grouparm", "groupdisarm")
         if is_group_event:
-            _LOGGER.debug(
-                "SSE: Group event %s detected, forcing metadata refresh for group states",
+            _LOGGER.info(
+                "SSE: Group event '%s' detected for hub %s, triggering metadata refresh",
                 event_tag,
+                space.hub_id,
             )
-            await self.coordinator.async_force_metadata_refresh()
+            try:
+                await self.coordinator.async_force_metadata_refresh()
+                _LOGGER.info("SSE: Metadata refresh completed after group event")
+            except Exception as err:
+                _LOGGER.error("SSE: Metadata refresh failed after group event: %s", err)
 
         if state_changed and not is_group_event:
             space.security_state = new_state

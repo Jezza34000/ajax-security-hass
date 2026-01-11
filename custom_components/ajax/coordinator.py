@@ -128,6 +128,9 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
         )
         self._door_sensor_poll_security_state: SecurityState = SecurityState.DISARMED
         self._initial_load_done: bool = False  # Track if initial data load is complete
+        self._force_metadata_refresh: bool = (
+            False  # Flag to force full metadata refresh
+        )
         self._pending_ha_actions: dict[
             str, float
         ] = {}  # hub_id -> timestamp of HA action
@@ -384,8 +387,8 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
 
         Can be called from a service or button to manually refresh.
         """
-        _LOGGER.info("Forcing full metadata refresh")
-        self._last_metadata_refresh = 0  # Reset to force refresh
+        _LOGGER.info("Forcing full metadata refresh (flag set)")
+        self._force_metadata_refresh = True  # Set flag to force refresh
         await self.async_request_refresh()
 
     async def _async_update_data(self) -> AjaxAccount:
@@ -439,10 +442,16 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                     asyncio.create_task(self._async_init_sqs())
             else:
                 # Periodic update - optimized polling
-                # Check if we need full metadata refresh (hourly)
-                need_metadata_refresh = self._should_refresh_metadata()
+                # Check if we need full metadata refresh (hourly or forced)
+                need_metadata_refresh = (
+                    self._force_metadata_refresh or self._should_refresh_metadata()
+                )
                 if need_metadata_refresh:
-                    _LOGGER.info("Hourly metadata refresh (rooms, users, groups)")
+                    if self._force_metadata_refresh:
+                        _LOGGER.info("Forced metadata refresh (groups will be updated)")
+                        self._force_metadata_refresh = False  # Clear the flag
+                    else:
+                        _LOGGER.info("Hourly metadata refresh (rooms, users, groups)")
                     self._last_metadata_refresh = time.time()
 
                 # Light or full update based on metadata refresh need
@@ -917,8 +926,15 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                                         "bulkDisarmInvolved", False
                                     ),
                                 )
-                        _LOGGER.debug(
-                            "Hub %s: Loaded %d groups", hub_id, len(space.groups)
+                        # Log group states for debugging
+                        group_states = [
+                            f"{g.name}={g.state.value}" for g in space.groups.values()
+                        ]
+                        _LOGGER.info(
+                            "Hub %s: Updated %d groups: %s",
+                            hub_id,
+                            len(space.groups),
+                            ", ".join(group_states) if group_states else "none",
                         )
                     except Exception as err:
                         _LOGGER.warning(

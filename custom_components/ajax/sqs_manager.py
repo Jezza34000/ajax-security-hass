@@ -446,12 +446,16 @@ class SQSManager:
         # because the final state depends on how many groups are armed
         is_group_event = event_tag in ("grouparm", "groupdisarm")
         if is_group_event:
-            _LOGGER.debug(
-                "SQS: Group event %s detected, forcing metadata refresh for group states",
+            _LOGGER.info(
+                "SQS: Group event '%s' detected for hub %s, triggering metadata refresh",
                 event_tag,
+                space.hub_id,
             )
-            # Force full metadata refresh to update group states
-            await self.coordinator.async_force_metadata_refresh()
+            try:
+                await self.coordinator.async_force_metadata_refresh()
+                _LOGGER.info("SQS: Metadata refresh completed after group event")
+            except Exception as err:
+                _LOGGER.error("SQS: Metadata refresh failed after group event: %s", err)
 
         # Skip state update if HA action is pending (protect optimistic update)
         # But still record the event in history and create notification
