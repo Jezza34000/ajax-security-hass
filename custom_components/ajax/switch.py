@@ -184,6 +184,14 @@ class AjaxSwitch(CoordinatorEntity[AjaxDataCoordinator], SwitchEntity):
         if device.type in (DeviceType.SOCKET, DeviceType.RELAY, DeviceType.WALLSWITCH):
             # Check if this is a multi-gang channel switch
             channel = self._switch_desc.get("channel")
+            _LOGGER.debug(
+                "Switch %s: key=%s, channel=%s, value=%s, switch_desc=%s",
+                device.name,
+                self._switch_key,
+                channel,
+                value,
+                self._switch_desc,
+            )
             if channel:
                 await self._set_channel_value(space, device, channel, value)
                 return
