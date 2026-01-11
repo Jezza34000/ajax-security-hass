@@ -27,11 +27,11 @@ DEVICES_WITH_DOOR_PLUS_SELECTS = [
 ]
 
 # Shock sensitivity options mapping (value -> translation key)
-# Based on Ajax app: 0=low, 1=normal, 2=high
+# Ajax API values: 0=low, 4=normal, 7=high (confirmed via testing)
 SHOCK_SENSITIVITY_OPTIONS = {
     0: "low",
-    1: "normal",
-    2: "high",
+    4: "normal",
+    7: "high",
 }
 
 # Reverse mapping (key -> value)
