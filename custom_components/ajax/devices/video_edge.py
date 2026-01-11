@@ -26,14 +26,17 @@ class VideoEdgeHandler:
         """Return binary sensor entities for video edges."""
         sensors = []
 
+        # Ensure channels is a list
+        channels = self.video_edge.channels
+        if not isinstance(channels, list):
+            return sensors
+
         # For each channel, we can have AI detection sensors
-        for i, channel in enumerate(self.video_edge.channels):
+        for i, channel in enumerate(channels):
             channel_id = (
                 channel.get("id", str(i)) if isinstance(channel, dict) else str(i)
             )
-            channel_name = (
-                f"Channel {i + 1}" if len(self.video_edge.channels) > 1 else ""
-            )
+            channel_name = f"Channel {i + 1}" if len(channels) > 1 else ""
 
             # Motion detection
             sensors.append(
@@ -127,7 +130,10 @@ class VideoEdgeHandler:
 
     def _get_channel_by_id(self, channel_id: str) -> dict | None:
         """Get channel dict by ID from current video_edge.channels."""
-        for i, channel in enumerate(self.video_edge.channels):
+        channels = self.video_edge.channels
+        if not isinstance(channels, list):
+            return None
+        for i, channel in enumerate(channels):
             if isinstance(channel, dict):
                 if channel.get("id") == channel_id:
                     return channel

@@ -1628,7 +1628,17 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                 room_id = None
                 room_name = None
                 # Video edges might have channels with room assignments
-                channels = ve_data.get("channels", [])
+                channels_raw = ve_data.get("channels", [])
+                # Normalize channels to always be a list of dicts
+                if isinstance(channels_raw, dict):
+                    # Single channel returned as dict instead of list
+                    channels = [channels_raw]
+                elif isinstance(channels_raw, list):
+                    # Filter to only include dict elements
+                    channels = [c for c in channels_raw if isinstance(c, dict)]
+                else:
+                    channels = []
+
                 if channels:
                     first_channel = channels[0]
                     space_settings = first_channel.get("spaceSettings", {})
