@@ -86,8 +86,19 @@
         "description": "Choisissez une catégorie à configurer",
         "menu_options": {
           "notifications": "Notifications",
+          "polling_settings": "Paramètres de polling",
           "proxy_settings": "Paramètres du proxy",
           "aws_credentials": "Identifiants AWS SQS"
+        }
+      },
+      "polling_settings": {
+        "title": "Paramètres de polling",
+        "description": "Configurez le comportement du polling API pour optimiser les performances.\n\n**Comportement actuel:**\n- Polling léger (état hub + appareils): toutes les 30-60s\n- Rafraîchissement métadonnées (pièces, utilisateurs, groupes): toutes les heures",
+        "data": {
+          "door_sensor_fast_poll": "Polling rapide capteurs de porte"
+        },
+        "data_description": {
+          "door_sensor_fast_poll": "Interroger les capteurs de porte toutes les 5 secondes en mode désarmé. Désactiver pour réduire les appels API."
         }
       },
       "notifications": {

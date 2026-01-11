@@ -23,6 +23,7 @@ from .const import (
     CONF_AUTH_MODE,
     CONF_AWS_ACCESS_KEY_ID,
     CONF_AWS_SECRET_ACCESS_KEY,
+    CONF_DOOR_SENSOR_FAST_POLL,
     CONF_EMAIL,
     CONF_PASSWORD,
     CONF_PROXY_URL,
@@ -40,6 +41,7 @@ _LOGGER = logging.getLogger(__name__)
 SERVICE_FORCE_ARM = "force_arm"
 SERVICE_FORCE_ARM_NIGHT = "force_arm_night"
 SERVICE_GET_RAW_DEVICES = "get_raw_devices"
+SERVICE_REFRESH_METADATA = "refresh_metadata"
 
 PLATFORMS: list[Platform] = [
     Platform.ALARM_CONTROL_PANEL,
@@ -137,7 +139,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady from err
 
     # Create coordinator
-    # - REST polling: Baseline updates every 30s
+    # - REST polling: Baseline updates every 30s (disarmed) or 60s (armed)
     # - AWS SQS: Optional real-time events (direct mode only)
     # - SSE: Real-time events via proxy (proxy modes only)
     coordinator = AjaxDataCoordinator(
@@ -148,6 +150,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         queue_name=queue_name,
         sse_url=sse_url,
     )
+
+    # Store config entry reference for options access
+    coordinator.config_entry = entry
+
+    # Apply options to coordinator (default: disabled to reduce API calls)
+    door_sensor_fast_poll = entry.options.get(CONF_DOOR_SENSOR_FAST_POLL, False)
+    coordinator._door_sensor_fast_poll_enabled = door_sensor_fast_poll
+    if door_sensor_fast_poll:
+        _LOGGER.info("Door sensor fast polling enabled (5s interval when disarmed)")
+    else:
+        _LOGGER.debug("Door sensor fast polling disabled (API optimization)")
 
     # Store coordinator
     hass.data[DOMAIN][entry.entry_id] = coordinator
@@ -338,6 +351,27 @@ async def _async_setup_services(
             DOMAIN,
             SERVICE_GET_RAW_DEVICES,
             handle_get_raw_devices,
+        )
+
+    async def handle_refresh_metadata(call: ServiceCall) -> None:
+        """Handle refresh metadata service call - force full metadata refresh."""
+        _LOGGER.info("Forcing full metadata refresh via service call")
+        await coordinator.async_force_metadata_refresh()
+
+        from homeassistant.components.persistent_notification import async_create
+
+        async_create(
+            hass,
+            "Full metadata refresh completed (rooms, users, groups)",
+            title="Ajax Refresh",
+            notification_id="ajax_refresh_metadata",
+        )
+
+    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_METADATA):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_REFRESH_METADATA,
+            handle_refresh_metadata,
         )
 
 

@@ -880,6 +880,10 @@
           "description": "The alarm control panel entity to force arm in night mode"
         }
       }
+    },
+    "refresh_metadata": {
+      "name": "Refresh metadata",
+      "description": "Force a full refresh of rooms, users, and groups from Ajax"
     }
   },
   "options": {
@@ -889,8 +893,19 @@
         "description": "Choose a category to configure",
         "menu_options": {
           "notifications": "Notifications",
+          "polling_settings": "Polling Settings",
           "proxy_settings": "Proxy Settings",
           "aws_credentials": "AWS SQS Credentials"
+        }
+      },
+      "polling_settings": {
+        "title": "Polling Settings",
+        "description": "Configure API polling behavior to optimize performance.\n\n**Current behavior:**\n- Light polling (hub state + devices): every 30-60s\n- Full metadata refresh (rooms, users, groups): hourly",
+        "data": {
+          "door_sensor_fast_poll": "Door sensor fast polling"
+        },
+        "data_description": {
+          "door_sensor_fast_poll": "Poll door sensors every 5 seconds when disarmed. Disable to reduce API calls."
         }
       },
       "notifications": {

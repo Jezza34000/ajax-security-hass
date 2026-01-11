@@ -30,6 +30,7 @@ from .const import (
     CONF_AUTH_MODE,
     CONF_AWS_ACCESS_KEY_ID,
     CONF_AWS_SECRET_ACCESS_KEY,
+    CONF_DOOR_SENSOR_FAST_POLL,
     CONF_EMAIL,
     CONF_MONITORED_SPACES,
     CONF_NOTIFICATION_FILTER,
@@ -482,7 +483,7 @@ class AjaxOptionsFlow(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Manage the options - main menu."""
         # Build menu options based on auth mode
-        menu_options = ["notifications"]
+        menu_options = ["notifications", "polling_settings"]
 
         auth_mode = self.config_entry.data.get(CONF_AUTH_MODE, AUTH_MODE_DIRECT)
 
@@ -573,6 +574,34 @@ class AjaxOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="notifications",
             data_schema=vol.Schema(schema_dict),
+        )
+
+    async def async_step_polling_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage polling settings."""
+        if user_input is not None:
+            # Merge with existing options
+            new_options = {**self.config_entry.options, **user_input}
+            return self.async_create_entry(title="", data=new_options)
+
+        # Get current options (default: disabled to reduce API calls)
+        current_fast_poll = self.config_entry.options.get(
+            CONF_DOOR_SENSOR_FAST_POLL, False
+        )
+
+        data_schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_DOOR_SENSOR_FAST_POLL,
+                    default=current_fast_poll,
+                ): bool,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="polling_settings",
+            data_schema=data_schema,
         )
 
     async def async_step_proxy_settings(

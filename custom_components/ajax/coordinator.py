@@ -30,6 +30,7 @@ from .const import (
     CONF_NOTIFICATION_FILTER,
     CONF_PERSISTENT_NOTIFICATION,
     DOMAIN,
+    METADATA_REFRESH_INTERVAL,
     NOTIFICATION_FILTER_ALARMS_ONLY,
     NOTIFICATION_FILTER_ALL,
     NOTIFICATION_FILTER_NONE,
@@ -142,6 +143,13 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
         self._last_device_details_refresh: float = 0
         self._device_details_refresh_interval: int = 300  # 5 minutes in seconds
 
+        # Metadata refresh optimization (rooms, users, groups)
+        # These don't change often, so refresh every hour instead of every poll
+        self._last_metadata_refresh: float = 0
+
+        # Door sensor fast polling option (disabled by default to reduce API calls)
+        self._door_sensor_fast_poll_enabled: bool = False
+
         super().__init__(
             hass,
             _LOGGER,
@@ -152,8 +160,10 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
     def _update_polling_interval(self, security_state: SecurityState) -> None:
         """Update polling interval based on security state.
 
-        Polling is 30s in all modes (Ajax API minimum). Also manages door sensor
-        fast polling (5s) when disarmed or in night mode for excluded sensors.
+        - Armed/Night/Partial: 60s (SSE/SQS handles real-time events)
+        - Disarmed: 30s (no SSE/SQS, need faster polling)
+
+        Also manages door sensor fast polling (5s) when disarmed.
 
         Args:
             security_state: Current security state of the space
@@ -197,6 +207,10 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             should_poll: True to start polling, False to stop
             security_state: Current security state (used to filter sensors in night mode)
         """
+        # Check if fast polling is enabled (can be disabled to reduce API calls)
+        if not self._door_sensor_fast_poll_enabled:
+            should_poll = False
+
         # Store security state for the polling loop
         self._door_sensor_poll_security_state = security_state
 
@@ -351,10 +365,29 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             _LOGGER.debug("Door sensor polling loop cancelled")
             raise
 
+    def _should_refresh_metadata(self) -> bool:
+        """Check if metadata (rooms, users, groups) should be refreshed.
+
+        Returns True if more than METADATA_REFRESH_INTERVAL seconds have passed.
+        """
+        current_time = time.time()
+        return current_time - self._last_metadata_refresh >= METADATA_REFRESH_INTERVAL
+
+    async def async_force_metadata_refresh(self) -> None:
+        """Force a full metadata refresh (rooms, users, groups).
+
+        Can be called from a service or button to manually refresh.
+        """
+        _LOGGER.info("Forcing full metadata refresh")
+        self._last_metadata_refresh = 0  # Reset to force refresh
+        await self.async_request_refresh()
+
     async def _async_update_data(self) -> AjaxAccount:
         """Fetch data from Ajax REST API.
 
-        This is called periodically for updates.
+        Uses optimized polling strategy:
+        - Light polling (every cycle): Hub state + devices only
+        - Full metadata refresh (hourly): Rooms, users, groups
         """
         try:
             # Initialize account if needed
@@ -363,8 +396,9 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
 
             # Only do full data load on first run or manual reload
             if not self._initial_load_done:
-                # Update spaces - use hubs endpoint directly to get hubId
-                await self._async_update_spaces_from_hubs()
+                # Full update - use hubs endpoint directly to get hubId
+                await self._async_update_spaces_from_hubs(full_refresh=True)
+                self._last_metadata_refresh = time.time()
 
                 # Load devices, video edges, and notifications in parallel for all spaces
                 tasks = []
@@ -398,8 +432,17 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                     # Direct mode: use SQS for real-time events
                     asyncio.create_task(self._async_init_sqs())
             else:
-                # Periodic update - refresh hub state and devices
-                await self._async_update_spaces_from_hubs()
+                # Periodic update - optimized polling
+                # Check if we need full metadata refresh (hourly)
+                need_metadata_refresh = self._should_refresh_metadata()
+                if need_metadata_refresh:
+                    _LOGGER.info("Hourly metadata refresh (rooms, users, groups)")
+                    self._last_metadata_refresh = time.time()
+
+                # Light or full update based on metadata refresh need
+                await self._async_update_spaces_from_hubs(
+                    full_refresh=need_metadata_refresh
+                )
 
                 for space_id in self.account.spaces:
                     space = self.account.spaces.get(space_id)
@@ -649,8 +692,13 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
         finally:
             self._sse_initialized = True
 
-    async def _async_update_spaces_from_hubs(self) -> None:
-        """Update spaces by fetching hubs directly (use hub_id as space_id)."""
+    async def _async_update_spaces_from_hubs(self, full_refresh: bool = True) -> None:
+        """Update spaces by fetching hubs directly (use hub_id as space_id).
+
+        Args:
+            full_refresh: If True, fetch all metadata (rooms, users, groups).
+                         If False, only fetch hub state (light polling).
+        """
         hubs_data = await self.api.async_get_hubs()
 
         for hub_data in hubs_data:
@@ -662,45 +710,58 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
             try:
                 hub_details = await self.api.async_get_hub(hub_id)
 
-                # Get space details to get the actual space name (e.g., "Maison")
-                # and the real space_id (different from hub_id, needed for video edges)
+                # Get space details only on full refresh or for new spaces
+                space_id = hub_id
+                is_new_space = space_id not in self.account.spaces
+
                 space_name = None
                 real_space_id = None
-                try:
-                    space_binding = await self.api.async_get_space_by_hub(hub_id)
-                    if space_binding:
-                        space_name = space_binding.get("name")
-                        real_space_id = space_binding.get("id")
+                rooms_data: list[dict] = []
+                rooms_map: dict = {}
+
+                if full_refresh or is_new_space:
+                    # Full refresh: fetch space binding, rooms
+                    try:
+                        space_binding = await self.api.async_get_space_by_hub(hub_id)
+                        if space_binding:
+                            space_name = space_binding.get("name")
+                            real_space_id = space_binding.get("id")
+                            _LOGGER.debug(
+                                "Found space '%s' (id: %s) for hub %s",
+                                space_name,
+                                real_space_id,
+                                hub_id,
+                            )
+                    except Exception as space_err:
                         _LOGGER.debug(
-                            "Found space '%s' (id: %s) for hub %s",
-                            space_name,
-                            real_space_id,
+                            "Could not get space for %s: %s", hub_id, space_err
+                        )
+
+                    # Get rooms for this hub
+                    try:
+                        rooms_data = await self.api.async_get_rooms(hub_id)
+                        # Build room_id -> room_name mapping
+                        rooms_map = {
+                            room.get("id"): room.get("roomName")
+                            for room in rooms_data
+                            if room.get("id")
+                        }
+                        _LOGGER.debug(
+                            "Loaded %d rooms for hub %s",
+                            len(rooms_map),
                             hub_id,
                         )
-                except Exception as space_err:
-                    _LOGGER.debug("Could not get space for %s: %s", hub_id, space_err)
+                    except Exception as room_err:
+                        _LOGGER.warning(
+                            "Could not get rooms for hub %s: %s", hub_id, room_err
+                        )
+                else:
+                    # Light refresh: reuse existing metadata
+                    existing_space = self.account.spaces[space_id]
+                    space_name = existing_space.name
+                    real_space_id = existing_space.real_space_id
+                    rooms_map = getattr(existing_space, "_rooms_map", {})
 
-                # Get rooms for this hub
-                rooms_data: list[dict] = []
-                try:
-                    rooms_data = await self.api.async_get_rooms(hub_id)
-                    # Build room_id -> room_name mapping
-                    rooms_map = {
-                        room.get("id"): room.get("roomName")
-                        for room in rooms_data
-                        if room.get("id")
-                    }
-                    _LOGGER.info(
-                        "Loaded %d rooms for hub %s: %s",
-                        len(rooms_map),
-                        hub_id,
-                        rooms_map,
-                    )
-                except Exception as room_err:
-                    _LOGGER.warning(
-                        "Could not get rooms for hub %s: %s", hub_id, room_err
-                    )
-                    rooms_map = {}
                 # Try to get name: prefer space name, fallback to hub details
                 hub_name = (
                     space_name  # Space name from /spaces endpoint (e.g., "Maison")
@@ -771,75 +832,83 @@ class AjaxDataCoordinator(DataUpdateCoordinator[AjaxAccount]):
                 space.real_space_id = real_space_id  # Update real space ID
                 space.hub_details = hub_details  # Update hub information
 
-            # Store rooms mapping in space for device room name lookup
-            space._rooms_map = rooms_map  # type: ignore
+            # Only update rooms, users, groups on full refresh
+            if full_refresh or is_new_space:
+                # Store rooms mapping in space for device room name lookup
+                space._rooms_map = rooms_map  # type: ignore
 
-            # Populate space.rooms with AjaxRoom objects
-            for room_data in rooms_data:
-                room_id = room_data.get("id")
-                if room_id:
-                    space.rooms[room_id] = AjaxRoom(
-                        id=room_id,
-                        name=room_data.get("roomName", f"Room {room_id}"),
-                        space_id=space_id,
-                        image_id=room_data.get("imageId"),
-                        image_url=room_data.get("imageUrl"),
-                    )
+                # Populate space.rooms with AjaxRoom objects
+                for room_data in rooms_data:
+                    room_id = room_data.get("id")
+                    if room_id:
+                        space.rooms[room_id] = AjaxRoom(
+                            id=room_id,
+                            name=room_data.get("roomName", f"Room {room_id}"),
+                            space_id=space_id,
+                            image_id=room_data.get("imageId"),
+                            image_url=room_data.get("imageUrl"),
+                        )
 
-            # Fetch users for this hub
-            try:
-                users_data = await self.api.async_get_users(hub_id)
-                space._users = users_data  # type: ignore
-            except Exception:
-                space._users = []  # type: ignore
-
-            # Fetch groups if groups mode is enabled
-            groups_enabled = hub_details.get("groupsEnabled", False)
-            space.group_mode_enabled = groups_enabled
-            if groups_enabled:
-                # Check if HA recently triggered an action (protect optimistic updates)
-                ha_action_pending = self.has_pending_ha_action(hub_id)
+                # Fetch users for this hub
                 try:
-                    groups_data = await self.api.async_get_groups(hub_id)
-                    for group_data in groups_data:
-                        group_id = group_data.get("id")
-                        if group_id:
-                            # Parse group state
-                            group_state_str = group_data.get("state", "DISARMED")
-                            if group_state_str == "ARMED":
-                                group_state = GroupState.ARMED
-                            elif group_state_str == "DISARMED":
-                                group_state = GroupState.DISARMED
-                            else:
-                                group_state = GroupState.NONE
+                    users_data = await self.api.async_get_users(hub_id)
+                    space._users = users_data  # type: ignore
+                except Exception:
+                    space._users = []  # type: ignore
 
-                            # Check if group already exists
-                            existing_group = space.groups.get(group_id)
-                            if existing_group and ha_action_pending:
-                                # Protect optimistic update - keep existing state
-                                _LOGGER.debug(
-                                    "Group %s: REST has %s but HA action pending, keeping %s",
-                                    group_id,
-                                    group_state.value,
-                                    existing_group.state.value,
+                # Fetch groups if groups mode is enabled
+                groups_enabled = hub_details.get("groupsEnabled", False)
+                space.group_mode_enabled = groups_enabled
+                if groups_enabled:
+                    # Check if HA recently triggered an action (protect optimistic updates)
+                    ha_action_pending = self.has_pending_ha_action(hub_id)
+                    try:
+                        groups_data = await self.api.async_get_groups(hub_id)
+                        for group_data in groups_data:
+                            group_id = group_data.get("id")
+                            if group_id:
+                                # Parse group state
+                                group_state_str = group_data.get("state", "DISARMED")
+                                if group_state_str == "ARMED":
+                                    group_state = GroupState.ARMED
+                                elif group_state_str == "DISARMED":
+                                    group_state = GroupState.DISARMED
+                                else:
+                                    group_state = GroupState.NONE
+
+                                # Check if group already exists
+                                existing_group = space.groups.get(group_id)
+                                if existing_group and ha_action_pending:
+                                    # Protect optimistic update - keep existing state
+                                    _LOGGER.debug(
+                                        "Group %s: REST has %s but HA action pending, keeping %s",
+                                        group_id,
+                                        group_state.value,
+                                        existing_group.state.value,
+                                    )
+                                    group_state = existing_group.state
+
+                                space.groups[group_id] = AjaxGroup(
+                                    id=group_id,
+                                    name=group_data.get(
+                                        "groupName", f"Group {group_id}"
+                                    ),
+                                    space_id=space_id,
+                                    state=group_state,
+                                    bulk_arm_involved=group_data.get(
+                                        "bulkArmInvolved", False
+                                    ),
+                                    bulk_disarm_involved=group_data.get(
+                                        "bulkDisarmInvolved", False
+                                    ),
                                 )
-                                group_state = existing_group.state
-
-                            space.groups[group_id] = AjaxGroup(
-                                id=group_id,
-                                name=group_data.get("groupName", f"Group {group_id}"),
-                                space_id=space_id,
-                                state=group_state,
-                                bulk_arm_involved=group_data.get(
-                                    "bulkArmInvolved", False
-                                ),
-                                bulk_disarm_involved=group_data.get(
-                                    "bulkDisarmInvolved", False
-                                ),
-                            )
-                    _LOGGER.debug("Hub %s: Loaded %d groups", hub_id, len(space.groups))
-                except Exception as err:
-                    _LOGGER.warning("Failed to get groups for hub %s: %s", hub_id, err)
+                        _LOGGER.debug(
+                            "Hub %s: Loaded %d groups", hub_id, len(space.groups)
+                        )
+                    except Exception as err:
+                        _LOGGER.warning(
+                            "Failed to get groups for hub %s: %s", hub_id, err
+                        )
 
             # Check if SQS/SSE recently updated this hub's state
             # If so, don't overwrite with potentially stale REST data

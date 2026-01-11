@@ -25,6 +25,9 @@ AUTH_MODE_DIRECT = "direct"  # Direct API + SQS (current)
 AUTH_MODE_PROXY_SECURE = "proxy_secure"  # All requests via proxy + SSE
 AUTH_MODE_PROXY_HYBRID = "proxy_hybrid"  # API key via proxy, direct requests + SSE
 
+# Polling configuration
+CONF_DOOR_SENSOR_FAST_POLL = "door_sensor_fast_poll"  # Enable fast door sensor polling
+
 # Notification filter options
 NOTIFICATION_FILTER_NONE = "none"
 NOTIFICATION_FILTER_ALARMS_ONLY = "alarms_only"
@@ -36,8 +39,9 @@ AJAX_REST_API_BASE_URL = "https://api.ajax.systems/api"
 AJAX_REST_API_TIMEOUT = 30  # seconds
 
 # Update intervals (seconds)
-UPDATE_INTERVAL = 30  # Default poll interval (minimum 30s per Ajax API)
-UPDATE_INTERVAL_ARMED = (
-    30  # Poll interval when armed/night mode (minimum 30s per Ajax API)
-)
+UPDATE_INTERVAL = 30  # Default poll interval when disarmed (need faster updates)
+UPDATE_INTERVAL_ARMED = 60  # Poll interval when armed (SSE/SQS handles real-time)
 UPDATE_INTERVAL_DOOR_SENSORS = 5  # Fast poll interval for door sensors when disarmed
+METADATA_REFRESH_INTERVAL = (
+    3600  # Full metadata refresh every hour (rooms, users, groups)
+)
