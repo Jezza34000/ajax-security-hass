@@ -156,6 +156,7 @@ class AjaxAlarmControlPanel(
             SecurityState.AWAITING_EXIT_TIMER: AlarmControlPanelState.ARMING,
             SecurityState.AWAITING_CONFIRMATION: AlarmControlPanelState.PENDING,
             SecurityState.ARMING_INCOMPLETE: AlarmControlPanelState.ARMING,
+            SecurityState.TRIGGERED: AlarmControlPanelState.TRIGGERED,
         }
 
         return state_map.get(space.security_state, AlarmControlPanelState.DISARMED)

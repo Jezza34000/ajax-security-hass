@@ -388,6 +388,8 @@ class SSEManager:
         self, space, event_tag: str, source_name: str, source_id: str
     ) -> None:
         """Handle motion detected events."""
+        from .models import SecurityState
+
         action_key, is_triggered = MOTION_EVENTS[event_tag]
 
         dev = self._find_device(space, source_name, source_id)
@@ -397,6 +399,19 @@ class SSEManager:
                 timezone.utc
             ).isoformat()
             _LOGGER.info("SSE instant: %s -> %s", dev.name, action_key)
+
+            # If system is armed and motion detected, trigger alarm
+            if is_triggered and space.security_state in (
+                SecurityState.ARMED,
+                SecurityState.NIGHT_MODE,
+                SecurityState.PARTIALLY_ARMED,
+            ):
+                space.security_state = SecurityState.TRIGGERED
+                _LOGGER.info(
+                    "SSE: Alarm TRIGGERED by motion on %s (was %s)",
+                    dev.name,
+                    space.security_state.value,
+                )
         else:
             _LOGGER.warning(
                 "SSE: Motion device not found: name=%s, id=%s", source_name, source_id
@@ -406,6 +421,8 @@ class SSEManager:
         self, space, event_tag: str, source_name: str, source_id: str
     ) -> None:
         """Handle smoke/fire detector events."""
+        from .models import SecurityState
+
         action_key, is_triggered = SMOKE_EVENTS[event_tag]
 
         dev = self._find_device(space, source_name, source_id)
@@ -417,6 +434,11 @@ class SSEManager:
             elif "co" in action_key:
                 dev.attributes["co_detected"] = is_triggered
             _LOGGER.info("SSE instant: %s -> %s", dev.name, action_key)
+
+            # Smoke/fire alarms trigger regardless of arm state (life safety)
+            if is_triggered and space.security_state != SecurityState.TRIGGERED:
+                space.security_state = SecurityState.TRIGGERED
+                _LOGGER.info("SSE: Alarm TRIGGERED by smoke/fire on %s", dev.name)
         else:
             _LOGGER.warning(
                 "SSE: Smoke device not found: name=%s, id=%s", source_name, source_id
@@ -426,12 +448,19 @@ class SSEManager:
         self, space, event_tag: str, source_name: str, source_id: str
     ) -> None:
         """Handle flood/leak detector events."""
+        from .models import SecurityState
+
         action_key, is_triggered = FLOOD_EVENTS[event_tag]
 
         dev = self._find_device(space, source_name, source_id)
         if dev:
             dev.attributes["leak_detected"] = is_triggered
             _LOGGER.info("SSE instant: %s -> %s", dev.name, action_key)
+
+            # Flood alarms trigger regardless of arm state (life safety)
+            if is_triggered and space.security_state != SecurityState.TRIGGERED:
+                space.security_state = SecurityState.TRIGGERED
+                _LOGGER.info("SSE: Alarm TRIGGERED by flood on %s", dev.name)
         else:
             _LOGGER.warning(
                 "SSE: Flood device not found: name=%s, id=%s", source_name, source_id
@@ -441,12 +470,23 @@ class SSEManager:
         self, space, event_tag: str, source_name: str, source_id: str
     ) -> None:
         """Handle glass break events."""
+        from .models import SecurityState
+
         action_key, is_triggered = GLASS_EVENTS[event_tag]
 
         dev = self._find_device(space, source_name, source_id)
         if dev:
             dev.attributes["glass_break_detected"] = is_triggered
             _LOGGER.info("SSE instant: %s -> %s", dev.name, action_key)
+
+            # Glass break when armed triggers alarm
+            if is_triggered and space.security_state in (
+                SecurityState.ARMED,
+                SecurityState.NIGHT_MODE,
+                SecurityState.PARTIALLY_ARMED,
+            ):
+                space.security_state = SecurityState.TRIGGERED
+                _LOGGER.info("SSE: Alarm TRIGGERED by glass break on %s", dev.name)
         else:
             _LOGGER.warning(
                 "SSE: Glass device not found: name=%s, id=%s", source_name, source_id

@@ -577,6 +577,15 @@ class SQSManager:
             device.last_trigger_time = datetime.now(timezone.utc) if is_motion else None
             message = get_event_message(action, self._language)
             _LOGGER.info("SQS instant: %s -> %s", source_name, message)
+
+            # If system is armed and motion detected, trigger alarm
+            if is_motion and space.security_state in (
+                SecurityState.ARMED,
+                SecurityState.NIGHT_MODE,
+                SecurityState.PARTIALLY_ARMED,
+            ):
+                space.security_state = SecurityState.TRIGGERED
+                _LOGGER.info("SQS: Alarm TRIGGERED by motion on %s", device.name)
             return True
 
         _LOGGER.warning("SQS: Motion device %s not found", source_name)
@@ -601,6 +610,26 @@ class SQSManager:
 
             message = get_event_message(action, self._language)
             _LOGGER.info("SQS instant: %s - %s", source_name, message)
+
+            # Smoke/flood trigger regardless of arm state (life safety)
+            # Glass break triggers when armed (intrusion)
+            if is_alarm and space.security_state != SecurityState.TRIGGERED:
+                if alarm_type in ("smoke", "flood"):
+                    # Life safety alarms always trigger
+                    space.security_state = SecurityState.TRIGGERED
+                    _LOGGER.info(
+                        "SQS: Alarm TRIGGERED by %s on %s", alarm_type, device.name
+                    )
+                elif alarm_type == "glass" and space.security_state in (
+                    SecurityState.ARMED,
+                    SecurityState.NIGHT_MODE,
+                    SecurityState.PARTIALLY_ARMED,
+                ):
+                    space.security_state = SecurityState.TRIGGERED
+                    _LOGGER.info(
+                        "SQS: Alarm TRIGGERED by glass break on %s", device.name
+                    )
+
             return True
 
         _LOGGER.warning("SQS: Alarm device %s not found", source_name)

@@ -26,6 +26,7 @@ class SecurityState(Enum):
     AWAITING_EXIT_TIMER = "awaiting_exit_timer"
     AWAITING_CONFIRMATION = "awaiting_confirmation"
     ARMING_INCOMPLETE = "arming_incomplete"
+    TRIGGERED = "triggered"  # Alarm triggered (intrusion, smoke, etc.)
 
 
 class DeviceType(Enum):
