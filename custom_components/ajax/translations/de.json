@@ -144,6 +144,9 @@
           "on": "Verbunden"
         }
       },
+      "doorbell_ring": {
+        "name": "Türklingel"
+      },
       "external_contact": {
         "name": "Tür (externer Kontakt)"
       },
@@ -590,6 +593,9 @@
             "name": "Raum"
           }
         }
+      },
+      "last_ring": {
+        "name": "Letztes Klingeln"
       },
       "led_indication": {
         "name": "LED-Anzeige"

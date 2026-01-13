@@ -144,6 +144,9 @@
           "on": "Connected"
         }
       },
+      "doorbell_ring": {
+        "name": "Doorbell"
+      },
       "external_contact": {
         "name": "Door (external contact)"
       },
@@ -590,6 +593,9 @@
             "name": "Room"
           }
         }
+      },
+      "last_ring": {
+        "name": "Last ring"
       },
       "led_indication": {
         "name": "LED indication"

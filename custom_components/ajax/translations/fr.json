@@ -144,6 +144,9 @@
           "on": "Connecté"
         }
       },
+      "doorbell_ring": {
+        "name": "Sonnette"
+      },
       "external_contact": {
         "name": "Porte (contact externe)"
       },
@@ -589,6 +592,9 @@
             "name": "Pièce"
           }
         }
+      },
+      "last_ring": {
+        "name": "Dernière sonnerie"
       },
       "led_indication": {
         "name": "Indication LED"

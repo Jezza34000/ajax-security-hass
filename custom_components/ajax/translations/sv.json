@@ -144,6 +144,9 @@
           "on": "Ansluten"
         }
       },
+      "doorbell_ring": {
+        "name": "Dörrklocka"
+      },
       "external_contact": {
         "name": "Dörr (extern kontakt)"
       },
@@ -590,6 +593,9 @@
             "name": "Rum"
           }
         }
+      },
+      "last_ring": {
+        "name": "Senaste ringning"
       },
       "led_indication": {
         "name": "LED-indikering"
