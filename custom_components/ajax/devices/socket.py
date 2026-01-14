@@ -180,7 +180,7 @@ class SocketHandler(AjaxDeviceHandler):
         """Return switch entities for multi-gang LightSwitch devices."""
         switches = []
 
-        # Channel 1
+        # Channel 1 (API uses 0-indexed channels)
         channel_1_name = self.device.attributes.get("channel_1_name", "Channel 1")
         switches.append(
             {
@@ -189,11 +189,11 @@ class SocketHandler(AjaxDeviceHandler):
                 "value_fn": lambda: self.device.attributes.get("channel_1_on", False),
                 "icon": "mdi:light-switch",
                 "enabled_by_default": True,
-                "channel": 1,
+                "channel": 0,
             }
         )
 
-        # Channel 2
+        # Channel 2 (API uses 0-indexed channels)
         channel_2_name = self.device.attributes.get("channel_2_name", "Channel 2")
         switches.append(
             {
@@ -202,7 +202,7 @@ class SocketHandler(AjaxDeviceHandler):
                 "value_fn": lambda: self.device.attributes.get("channel_2_on", False),
                 "icon": "mdi:light-switch",
                 "enabled_by_default": True,
-                "channel": 2,
+                "channel": 1,
             }
         )
 
