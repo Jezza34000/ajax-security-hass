@@ -539,7 +539,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return unload_ok
 
 
-async def async_migrate_entry(hass: HomeAssistant, entry: AjaxConfigEntry) -> bool:
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Migrate old entry."""
     # Add unique_id
     if entry.version == 1 and entry.minor_version == 1:

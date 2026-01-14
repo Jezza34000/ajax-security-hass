@@ -7,7 +7,12 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
     SelectSelector,
@@ -15,7 +20,6 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
 )
 
-from . import AjaxConfigEntry
 from .api import (
     AjaxRest2FARequiredError,
     AjaxRestApi,
@@ -58,7 +62,7 @@ class AjaxConfigFlow(ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(
-        config_entry: AjaxConfigEntry,
+        config_entry: ConfigEntry,
     ) -> OptionsFlow:
         """Get the options flow for this handler."""
         return AjaxOptionsFlow()
@@ -121,6 +125,8 @@ class AjaxConfigFlow(ConfigFlow, domain=DOMAIN):
             self._user_input = user_input
             self._user_input[CONF_AUTH_MODE] = AUTH_MODE_DIRECT
 
+            await self.async_set_unique_id(user_input[CONF_EMAIL].lower())
+            self._abort_if_unique_id_configured()
             # Validate API credentials
             try:
                 self._api = AjaxRestApi(
@@ -187,8 +193,6 @@ class AjaxConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._entry_data[CONF_ENABLED_SPACES] = [s["id"] for s in self._spaces]
 
                 # Create entry
-                await self.async_set_unique_id(user_input[CONF_EMAIL])
-                self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title=f"Ajax - {user_input[CONF_EMAIL]}",
                     data=self._entry_data,
@@ -251,6 +255,8 @@ class AjaxConfigFlow(ConfigFlow, domain=DOMAIN):
 
             proxy_url = user_input[CONF_PROXY_URL].rstrip("/")
 
+            await self.async_set_unique_id(user_input[CONF_EMAIL].lower())
+            self._abort_if_unique_id_configured()
             try:
                 # For proxy mode, we authenticate via the proxy
                 # The proxy will provide API key (hybrid) or handle all requests (secure)
