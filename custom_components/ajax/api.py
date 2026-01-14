@@ -708,12 +708,12 @@ class AjaxRestApi:
         """Set multi-gang switch channel state.
 
         Uses SWITCH_ON/SWITCH_OFF command with channel parameter for LightSwitchTwoGang.
-        The Ajax API expects the channel number as a separate field in the payload.
+        The Ajax API expects the channel as a string in format "CHANNEL_1", "CHANNEL_2", etc.
 
         Args:
             hub_id: Hub ID
             device_id: Device ID
-            channel: Channel number (1 or 2)
+            channel: Channel index (0-based: 0 for channel 1, 1 for channel 2)
             state: True for on, False for off
             device_type: Device type string (e.g., "LightSwitchTwoGang")
         """
@@ -721,12 +721,14 @@ class AjaxRestApi:
             raise AjaxRestApiError("No user_id available. Call async_login() first.")
 
         endpoint = f"user/{self.user_id}/hubs/{hub_id}/devices/{device_id}/command"
-        # Use SWITCH_ON/SWITCH_OFF with channel as separate parameter
+        # Use SWITCH_ON/SWITCH_OFF with channel as string (API expects "CHANNEL_1", "CHANNEL_2")
         command = "SWITCH_ON" if state else "SWITCH_OFF"
+        # Convert 0-based index to API format: 0 -> "CHANNEL_1", 1 -> "CHANNEL_2"
+        channel_str = f"CHANNEL_{channel + 1}"
         payload = {
             "command": command,
             "deviceType": device_type,
-            "channel": channel,
+            "channel": channel_str,
         }
         _LOGGER.info(
             "Sending channel command: POST %s with %s",

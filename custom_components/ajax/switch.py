@@ -346,7 +346,8 @@ class AjaxSwitch(CoordinatorEntity[AjaxDataCoordinator], SwitchEntity):
         self, space, device, channel: int, value: bool
     ) -> None:
         """Set a channel value for multi-gang LightSwitch devices."""
-        attr_key = f"channel_{channel}_on"
+        # channel is 0-based (0, 1), but attribute keys are 1-based (channel_1_on, channel_2_on)
+        attr_key = f"channel_{channel + 1}_on"
         old_value = device.attributes.get(attr_key)
 
         # Optimistic update
