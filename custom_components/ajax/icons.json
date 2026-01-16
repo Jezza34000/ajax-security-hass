@@ -45,9 +45,6 @@
         "default": "mdi:map-marker-radius"
       }
     },
-    "last_ring": {
-      "default": "mdi:doorbell"
-    },
     "number": {
       "tilt_degrees": {
         "default": "mdi:angle-acute"
@@ -142,6 +139,9 @@
       },
       "last_action": {
         "default": "mdi:gesture-tap-button"
+      },
+      "last_ring": {
+        "default": "mdi:doorbell"
       },
       "mac_address": {
         "default": "mdi:ip-network"
