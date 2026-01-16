@@ -27,7 +27,6 @@ from homeassistant.helpers.service import async_extract_config_entry_ids
 from .api import AjaxRestApi, AjaxRestApiError, AjaxRestAuthError
 from .const import (
     AUTH_MODE_DIRECT,
-    AUTH_MODE_PROXY_HYBRID,
     AUTH_MODE_PROXY_SECURE,
     CONF_API_KEY,
     CONF_AUTH_MODE,
@@ -114,12 +113,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: AjaxConfigEntry) -> bool
         proxy_mode = AUTH_MODE_PROXY_SECURE
         _LOGGER.info("Using proxy secure authentication mode")
 
-    elif auth_mode == AUTH_MODE_PROXY_HYBRID:
-        # Proxy Hybrid: Login via proxy to get API key, then direct requests, SSE for events
-        proxy_url = entry.data[CONF_PROXY_URL]
-        proxy_mode = AUTH_MODE_PROXY_HYBRID
-        _LOGGER.info("Using proxy hybrid authentication mode")
-
     # Create REST API instance
     # password_is_hashed=True because we store only SHA256 hash, never plain password
     api = AjaxRestApi(
@@ -137,7 +130,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AjaxConfigEntry) -> bool
         _LOGGER.info("Successfully logged in to Ajax REST API")
 
         # Get SSE URL if using proxy mode
-        if auth_mode in (AUTH_MODE_PROXY_SECURE, AUTH_MODE_PROXY_HYBRID):
+        if auth_mode == AUTH_MODE_PROXY_SECURE:
             sse_url = api.sse_url
             if sse_url:
                 _LOGGER.info("SSE URL obtained from proxy: %s", sse_url)

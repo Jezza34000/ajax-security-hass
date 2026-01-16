@@ -27,7 +27,6 @@ CONF_PROXY_URL = "proxy_url"
 # Auth mode options
 AUTH_MODE_DIRECT = "direct"  # Direct API + SQS (current)
 AUTH_MODE_PROXY_SECURE = "proxy_secure"  # All requests via proxy + SSE
-AUTH_MODE_PROXY_HYBRID = "proxy_hybrid"  # API key via proxy, direct requests + SSE
 
 # Polling configuration
 CONF_DOOR_SENSOR_FAST_POLL = "door_sensor_fast_poll"  # Enable fast door sensor polling

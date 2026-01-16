@@ -79,7 +79,7 @@ class AjaxRestApi:
             password: User password (plain or SHA256 hashed)
             password_is_hashed: True if password is already SHA256 hashed
             proxy_url: URL of proxy server (for proxy modes)
-            proxy_mode: Authentication mode (direct, proxy_secure, proxy_hybrid)
+            proxy_mode: Authentication mode (direct, proxy_secure)
         """
         self.api_key = api_key
         self.email = email

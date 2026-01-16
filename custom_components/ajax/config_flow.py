@@ -28,7 +28,6 @@ from .api import (
 )
 from .const import (
     AUTH_MODE_DIRECT,
-    AUTH_MODE_PROXY_HYBRID,
     AUTH_MODE_PROXY_SECURE,
     CONF_API_KEY,
     CONF_AUTH_MODE,
@@ -633,8 +632,8 @@ class AjaxOptionsFlow(OptionsFlow):
 
         auth_mode = self.config_entry.data.get(CONF_AUTH_MODE, AUTH_MODE_DIRECT)
 
-        # Show proxy settings only for proxy modes
-        if auth_mode in (AUTH_MODE_PROXY_SECURE, AUTH_MODE_PROXY_HYBRID):
+        # Show proxy settings only for proxy mode
+        if auth_mode == AUTH_MODE_PROXY_SECURE:
             menu_options.append("proxy_settings")
 
         # Show AWS credentials only for direct mode
